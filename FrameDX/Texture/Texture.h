@@ -3,6 +3,9 @@
 
 namespace FrameDX
 {
+	// Forward declaration to prevent dependency loop
+	class Device;
+
 	class Texture
 	{
 	public:

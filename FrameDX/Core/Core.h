@@ -16,4 +16,8 @@ namespace FrameDX
 		OutOfMemory           = E_OUTOFMEMORY,
 		InvalidPointer        = E_POINTER
 	};
+
+#define LAST_ERROR (StatusCode)HRESULT_FROM_WIN32(GetLastError())
+
+	enum class KeyAction { Up, Down };
 }

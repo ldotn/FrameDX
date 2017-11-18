@@ -39,10 +39,16 @@
     <ClInclude Include="Texture\Texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Log.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\Device.cpp">
+      <Filter>Header Files\Device</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

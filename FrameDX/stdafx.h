@@ -12,3 +12,12 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <cinttypes>
+#include <string>
+#include <functional>
+#include <ppl.h>
+#include <concurrent_vector.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+
+using namespace std;
