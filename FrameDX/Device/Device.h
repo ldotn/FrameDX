@@ -7,6 +7,9 @@ namespace FrameDX
 	class Device
 	{
 	public:
+		// There can only be ONE keyboard callback function on the entire program, that's why it's static
+		static function<void(WPARAM,KeyAction)> KeyboardCallback;
+
 		struct Description
 		{
 			D3D11_CULL_MODE CullMode;
@@ -20,8 +23,6 @@ namespace FrameDX
 			// ------------------------
 			// The following variables are only valid if ComputeOnly == false
 			string WindowName;
-			// There can only be ONE keyboard callback function on the entire program, that's why it's static
-			static function<void(WPARAM,KeyAction)> KeyboardCallback;
 
 			// If any of the size variables equals -1 then the size is computed from the screen size
 			Texture::Description BackbufferDescription;

@@ -5,6 +5,8 @@
 
 using namespace FrameDX;
 
+function<void(WPARAM,KeyAction)> Device::KeyboardCallback;
+
 LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch( msg )
@@ -13,10 +15,10 @@ LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, L
 			 PostQuitMessage( 0 );
 			 break;
         case WM_KEYDOWN:
-            Device::Description::KeyboardCallback(wParam,KeyAction::Down);
+            Device::KeyboardCallback(wParam,KeyAction::Down);
 			break;
 		case WM_KEYUP:
-            Device::Description::KeyboardCallback(wParam,KeyAction::Up);
+            Device::KeyboardCallback(wParam,KeyAction::Up);
 			break;
     }
 	return 0;
@@ -24,8 +26,6 @@ LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, L
 
 StatusCode Device::Start(const Device::Description& params)
 {
-	LogAssertWithReturn((!Desc.KeyboardCallback && !params.KeyboardCallback) || (!Desc.KeyboardCallback && !params.KeyboardCallback),LogCategory::CriticalError,StatusCode::InvalidArgument);
-
 	Desc = params;
 	
 	if(!Desc.ComputeOnly)
@@ -54,14 +54,14 @@ StatusCode Device::Start(const Device::Description& params)
 
 		// Create the application's window
 		// This functions doesn't provide failure info with GetLastErro
-		int xBorder = GetSystemMetrics(SM_CXSIZEFRAME);
-		int yMenu   = GetSystemMetrics(SM_CYMENU);
-		int yBorder = GetSystemMetrics(SM_CYSIZEFRAME);
+		int x_border = GetSystemMetrics(SM_CXSIZEFRAME);
+		int y_menu   = GetSystemMetrics(SM_CYMENU);
+		int y_border = GetSystemMetrics(SM_CYSIZEFRAME);
 	
-		WindowHandle = CreateWindowA( wc.lpszClassName, Desc.WindowName.c_str(),
+		WindowHandle = CreateWindow( wc.lpszClassName, Desc.WindowName.c_str(),
 										  WS_OVERLAPPEDWINDOW, 0, 0, 
-										  Desc.BackbufferDescription.SizeX + 2*xBorder,
-										  Desc.BackbufferDescription.SizeY + 2*yBorder+yMenu,
+										  Desc.BackbufferDescription.SizeX + 2*x_border,
+										  Desc.BackbufferDescription.SizeY + 2*y_border + y_menu,
 										  NULL, NULL, wc.hInstance, NULL );
 		if(!WindowHandle)
 			return LAST_ERROR;
@@ -72,4 +72,43 @@ StatusCode Device::Start(const Device::Description& params)
 		if(!UpdateWindow( WindowHandle ))
 			return LAST_ERROR;
 	}
+
+	DWORD create_device_flags = 0;
+#ifdef _DEBUG
+	create_device_flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	D3D_FEATURE_LEVEL levels[] = 
+	{
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0
+	};
+
+	// Find the graphics adapter
+	IDXGIAdapter* adapter = nullptr;
+	IDXGIFactory* factory = nullptr; 
+    
+	LogCheckWithReturn(CreateDXGIFactory(__uuidof(IDXGIFactory) ,(void**)&factory),LogCategory::CriticalError);
+
+	if(Desc.AdapterIndex == -1)
+	{       
+		for ( UINT i = 0;factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND;i++ )
+		{
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+
+			wcout << L"GPU : " << i << L" , " << desc.Description << endl;
+		} 
+
+		wcout << L"Select GPU : " << endl;
+		int adapterIDX = 0;
+		cin >> Desc.AdapterIndex;
+	}
+
+	factory->EnumAdapters(Desc.AdapterIndex, &adapter);
+
+	// Find the feature level by creating a null device
+	D3D_FEATURE_LEVEL level;
+	LogCheckWithReturn(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 2, D3D11_SDK_VERSION, NULL, &level, nullptr ),LogCategory::CriticalError);
+
 }
