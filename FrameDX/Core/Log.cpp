@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "Log.h"
 
+FrameDX::__log FrameDX::Log;
+
 void FrameDX::__log::_record(const wstring & Message, LogCategory Category, int Line, const wstring & Function, const wstring & File)
 {
 	Entry e;

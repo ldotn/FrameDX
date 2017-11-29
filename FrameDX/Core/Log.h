@@ -35,7 +35,7 @@ namespace FrameDX
 	// Can be used inside an if
 #define LogCheckAndContinue(cond,cat) [&](){auto scode = ( FrameDX::StatusCode)cond; if(scode !=  FrameDX::StatusCode::Ok) { FrameDX::Log._record(wstring(#cond L" failed with code ") + FrameDX::StatusCodeToString(scode) ,cat,__LINE__,MAKE_WIDE(__FUNCTION__),MAKE_WIDE(__FILE__));} return scode; }()
 	
-	static class __log
+	extern class __log
 	{
 	public:
 		struct Entry

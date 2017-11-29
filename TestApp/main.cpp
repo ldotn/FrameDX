@@ -3,6 +3,9 @@
 #include "Core/Log.h"
 #include <io.h>
 #include <corecrt_io.h>
+#include <thread>
+#include <chrono>
+#include <conio.h>
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 {
@@ -11,37 +14,37 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
 
+	FrameDX::Device::KeyboardCallback = [](WPARAM key, FrameDX::KeyAction action)
+	{
+		if(key == 'W' && action == FrameDX::KeyAction::Up)
+			LogAssert(false,FrameDX::LogCategory::Error);
+	};
+
 	FrameDX::Device dev;
 
 	auto desc = FrameDX::Device::Description();
 	desc.WindowDescription.SizeX = 1920;
 	desc.WindowDescription.SizeY = 1080;
-
+	
 	LogCheck(dev.Start(desc),FrameDX::LogCategory::CriticalError);
 
-	HWND hWnd = dev.WindowHandle;
-	BOOL bGotMsg;
-	MSG  msg;
-	msg.message = WM_NULL;
-
-	while( WM_QUIT != msg.message  )
+	
+	thread log_printer([]()
 	{
-		// Use PeekMessage() so we can use idle time to render the scene
-		bGotMsg = ( PeekMessage( &msg, NULL, 0U, 0U, PM_REMOVE ) != 0 );
-
-		if( bGotMsg )
-		{
-			// Translate and dispatch the message
-			if( 0 == TranslateAccelerator( hWnd, NULL, &msg ) )
-			{
-				TranslateMessage( &msg );
-				DispatchMessage( &msg );
-			}
-		}
-		else
+		while(true)
 		{
 			system("cls");
 			FrameDX::Log.PrintAll(wcout);
+			this_thread::sleep_for(250ms);
 		}
-	}
+	});
+	log_printer.detach();
+
+
+	dev.EnterMainLoop([&]()
+	{
+		dev.GetSwapChain()->Present(0,0);
+	});
+
+	return 0;
 }

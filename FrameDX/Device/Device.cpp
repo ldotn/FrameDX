@@ -7,6 +7,28 @@ using namespace FrameDX;
 
 function<void(WPARAM,KeyAction)> Device::KeyboardCallback;
 
+void FrameDX::Device::EnterMainLoop(function<void()> LoopBody)
+{
+	MSG msg;
+	msg.message = WM_NULL;
+
+	while(msg.message != WM_QUIT)
+	{
+		// Use PeekMessage() render on idle time
+		if(PeekMessage( &msg, NULL, 0U, 0U, PM_REMOVE ))
+		{
+			// Translate and dispatch the message
+			if(!TranslateAccelerator( WindowHandle, NULL, &msg ))
+			{
+				TranslateMessage( &msg );
+				DispatchMessage( &msg );
+			}
+		}
+		else
+			LoopBody();
+	}
+}
+
 LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch( msg )
@@ -55,21 +77,16 @@ StatusCode Device::Start(const Device::Description& params)
 
 		// Create the application's window
 		// This functions doesn't provide failure info with GetLastErro
-		int x_border = GetSystemMetrics(SM_CXSIZEFRAME);
-		int y_menu   = GetSystemMetrics(SM_CYMENU);
-		int y_border = GetSystemMetrics(SM_CYSIZEFRAME);
-	
 		WindowHandle = CreateWindow( wc.lpszClassName, Desc.WindowDescription.Name.c_str(),
 										  Desc.WindowDescription.Fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW, 0, 0, 
-										  Desc.WindowDescription.SizeX + 2*x_border,
-										  Desc.WindowDescription.SizeY + 2*y_border + y_menu,
+										  Desc.WindowDescription.SizeX,
+										  Desc.WindowDescription.SizeY,
 										  NULL, NULL, wc.hInstance, NULL );
 		if(!WindowHandle)
 			return LAST_ERROR;
 
 		// Show the window
-		if(!ShowWindow( WindowHandle, SW_SHOWDEFAULT ))
-			return LAST_ERROR;
+		ShowWindow(WindowHandle, SW_SHOWDEFAULT);
 		if(!UpdateWindow( WindowHandle ))
 			return LAST_ERROR;
 	}
@@ -84,13 +101,16 @@ StatusCode Device::Start(const Device::Description& params)
 	IDXGIFactory* factory = nullptr; 
     bool UsingFactory2 = true;
 
-	if(CreateDXGIFactory2(0,__uuidof(IDXGIFactory2),(void**)&factory) != S_OK)
+	UINT dxgi2_flags = 0;
+#ifdef _DEBUG
+	dxgi2_flags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+	if(CreateDXGIFactory2(dxgi2_flags,__uuidof(IDXGIFactory2),(void**)&factory) != S_OK)
 	{
 		UsingFactory2 = false;
 		LogCheckWithReturn(CreateDXGIFactory(__uuidof(IDXGIFactory) ,(void**)&factory),LogCategory::CriticalError);
 	}
-	
-	
+
 	if(Desc.AdapterIndex == -1)
 	{       
 		for ( UINT i = 0;factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND;i++ )
@@ -150,22 +170,22 @@ StatusCode Device::Start(const Device::Description& params)
 
 	// Check if the immediate context can be casted to anything higher than 11.0
 	ID3D11DeviceContext* new_context;
-	if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext4), (void**)&new_context ) == S_OK)
+	if(ImmediateContext->QueryInterface( __uuidof(ID3D11DeviceContext4), (void**)&new_context ) == S_OK)
 	{
 		ImmediateContext = new_context;
 		ContextVersion = 4;
 	}
-	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext3), (void**)&new_context ) == S_OK)
+	else if(ImmediateContext->QueryInterface( __uuidof(ID3D11DeviceContext3), (void**)&new_context ) == S_OK)
 	{
 		ImmediateContext = new_context;
 		ContextVersion = 3;
 	}
-	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext2), (void**)&new_context ) == S_OK)
+	else if(ImmediateContext->QueryInterface( __uuidof(ID3D11DeviceContext2), (void**)&new_context ) == S_OK)
 	{
 		ImmediateContext = new_context;
 		ContextVersion = 2;
 	}
-	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext1), (void**)&new_context ) == S_OK)
+	else if(ImmediateContext->QueryInterface( __uuidof(ID3D11DeviceContext1), (void**)&new_context ) == S_OK)
 	{
 		ImmediateContext = new_context;
 		ContextVersion = 1;
@@ -188,14 +208,17 @@ StatusCode Device::Start(const Device::Description& params)
 			DXGI_SWAP_CHAIN_DESC1 desc;
 			desc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
 			desc.Height = Desc.SwapChainDescription.BackbufferDescription.SizeY;
-			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferDescription.Usage;
+			desc.BufferUsage = Desc.SwapChainDescription.BackbufferAccessFlags;
 			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
 			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;
 			desc.Format = Desc.SwapChainDescription.BackbufferDescription.Format;
-
+			desc.Scaling = Desc.SwapChainDescription.ScalingNewAPI;
+			desc.Stereo = Desc.SwapChainDescription.IsStereo;
+			desc.AlphaMode = Desc.SwapChainDescription.AlphaMode;
+			
 			DXGI_SWAP_CHAIN_FULLSCREEN_DESC fdesc;
 			if(Desc.WindowDescription.Fullscreen)
 			{
@@ -214,7 +237,7 @@ StatusCode Device::Start(const Device::Description& params)
 				fdesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
 				fdesc.Windowed = false;
 			}
-			
+		
 			LogCheckWithReturn(((IDXGIFactory2*)factory)->CreateSwapChainForHwnd(D3DDevice,WindowHandle,&desc,
 				Desc.WindowDescription.Fullscreen ? &fdesc : nullptr,nullptr,(IDXGISwapChain1**)&SwapChain),LogCategory::CriticalError);
 		}
@@ -227,7 +250,7 @@ StatusCode Device::Start(const Device::Description& params)
 			desc.BufferDesc.Scaling = Desc.SwapChainDescription.Scaling;
 			desc.BufferDesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
 			desc.Windowed = Desc.WindowDescription.Fullscreen;
-			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferDescription.Usage;
+			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferAccessFlags;
 			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
 			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
@@ -249,4 +272,5 @@ StatusCode Device::Start(const Device::Description& params)
 		}
 	}
 	
+	return StatusCode::Ok;
 }

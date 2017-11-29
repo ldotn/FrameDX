@@ -8,6 +8,14 @@ namespace FrameDX
 	class Device
 	{
 	public:
+		Device()
+		{
+			D3DDevice = nullptr;
+			ImmediateContext = nullptr;
+			SwapChain = nullptr;
+			Backbuffer = nullptr;
+		}
+
 		// There can only be ONE keyboard callback function on the entire program, that's why it's static
 		static function<void(WPARAM,KeyAction)> KeyboardCallback;
 
@@ -28,11 +36,13 @@ namespace FrameDX
 				SwapChainDescription.IsStereo = false;
 				SwapChainDescription.BufferCount = 3;
 				SwapChainDescription.SwapType = DXGI_SWAP_EFFECT_DISCARD;
-				SwapChainDescription.Scaling = DXGI_MODE_SCALING_STRETCHED;
+				SwapChainDescription.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 				SwapChainDescription.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 				SwapChainDescription.Flags = 0;
 				SwapChainDescription.VSync = false;
 				SwapChainDescription.ScanlineOrder = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+				SwapChainDescription.ScalingNewAPI = DXGI_SCALING_STRETCH;
+				SwapChainDescription.BackbufferAccessFlags = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			}
 
 			D3D11_CULL_MODE CullMode;
@@ -62,10 +72,13 @@ namespace FrameDX
 				uint32_t BufferCount;
 				DXGI_SWAP_EFFECT SwapType;
 				DXGI_MODE_SCALING Scaling;
+				DXGI_SCALING ScalingNewAPI;
 				DXGI_ALPHA_MODE AlphaMode;
 				DXGI_MODE_SCANLINE_ORDER ScanlineOrder;
 				uint32_t Flags;
 				bool VSync;
+
+				DXGI_USAGE BackbufferAccessFlags;
 			} SwapChainDescription;
 		} Desc;
 
@@ -94,8 +107,16 @@ namespace FrameDX
 		__GET_CONTEXT_DECL(3);
 		__GET_CONTEXT_DECL(4);
 
+		IDXGISwapChain * GetSwapChain(){ return SwapChain; };
 
-		HWND WindowHandle; 
+#define __GET_SWAP_DECL(v) IDXGISwapChain ## v * GetSwapChain##v() {\
+		if(LogAssertAndContinue(SwapChainVersion >= v,LogCategory::Error)) return nullptr;\
+		return (IDXGISwapChain ## v *)SwapChain; }
+
+		__GET_SWAP_DECL(1);
+
+		// Wraps a PeekMessage loop, and calls f on iddle time
+		void EnterMainLoop(function<void()> LoopBody);
 	private:
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -104,10 +125,12 @@ namespace FrameDX
 
 		int DeviceVersion;
 		int ContextVersion;
+		int SwapChainVersion;
 
 		// Only valid if ComputeOnly == false
 		IDXGISwapChain * SwapChain;
 		Texture * Backbuffer; 
+		HWND WindowHandle; 
 	};
 }
 
