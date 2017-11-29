@@ -50,5 +50,8 @@
     <ClCompile Include="Device\Device.cpp">
       <Filter>Header Files\Device</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Log.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

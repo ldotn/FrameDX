@@ -21,7 +21,8 @@ LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, L
             Device::KeyboardCallback(wParam,KeyAction::Up);
 			break;
     }
-	return 0;
+
+	return DefWindowProc( hWnd, msg, wParam, lParam );
 }
 
 StatusCode Device::Start(const Device::Description& params)
@@ -31,7 +32,7 @@ StatusCode Device::Start(const Device::Description& params)
 	if(!Desc.ComputeOnly)
 	{
 		// If no resolution was specified, get it from screen
-		if(Desc.BackbufferDescription.SizeX == -1 || Desc.BackbufferDescription.SizeY == -1)
+		if(Desc.WindowDescription.SizeX == 0 || Desc.WindowDescription.SizeY == 0)
 		{   
 			RECT desktop;
 
@@ -39,17 +40,17 @@ StatusCode Device::Start(const Device::Description& params)
 			if(!GetWindowRect(hDesktop, &desktop))
 				return LAST_ERROR;
 
-			Desc.BackbufferDescription.SizeX = desktop.right;
-			Desc.BackbufferDescription.SizeY = desktop.bottom;
+			Desc.WindowDescription.SizeX = desktop.right;
+			Desc.WindowDescription.SizeY = desktop.bottom;
 		}
 		
 		// Create window
 		// Register the window class
-		WNDCLASSEXA wc = { sizeof(WNDCLASSEXA), CS_CLASSDC, Device::InternalMessageProc, 0L, 0L,
-								  GetModuleHandleA(NULL), NULL, NULL, NULL, NULL,
-								  Desc.WindowName.c_str(), NULL };
+		WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, Device::InternalMessageProc, 0L, 0L,
+								  GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
+								  Desc.WindowDescription.Name.c_str(), NULL };
 
-		if(!RegisterClassExA( &wc ))
+		if(!RegisterClassEx( &wc ))
 			return LAST_ERROR;
 
 		// Create the application's window
@@ -58,10 +59,10 @@ StatusCode Device::Start(const Device::Description& params)
 		int y_menu   = GetSystemMetrics(SM_CYMENU);
 		int y_border = GetSystemMetrics(SM_CYSIZEFRAME);
 	
-		WindowHandle = CreateWindow( wc.lpszClassName, Desc.WindowName.c_str(),
-										  WS_OVERLAPPEDWINDOW, 0, 0, 
-										  Desc.BackbufferDescription.SizeX + 2*x_border,
-										  Desc.BackbufferDescription.SizeY + 2*y_border + y_menu,
+		WindowHandle = CreateWindow( wc.lpszClassName, Desc.WindowDescription.Name.c_str(),
+										  Desc.WindowDescription.Fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW, 0, 0, 
+										  Desc.WindowDescription.SizeX + 2*x_border,
+										  Desc.WindowDescription.SizeY + 2*y_border + y_menu,
 										  NULL, NULL, wc.hInstance, NULL );
 		if(!WindowHandle)
 			return LAST_ERROR;
@@ -73,23 +74,23 @@ StatusCode Device::Start(const Device::Description& params)
 			return LAST_ERROR;
 	}
 
-	DWORD create_device_flags = 0;
+	DWORD device_flags = 0;
 #ifdef _DEBUG
-	create_device_flags |= D3D11_CREATE_DEVICE_DEBUG;
+	device_flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-
-	D3D_FEATURE_LEVEL levels[] = 
-	{
-		D3D_FEATURE_LEVEL_11_1,
-		D3D_FEATURE_LEVEL_11_0
-	};
 
 	// Find the graphics adapter
 	IDXGIAdapter* adapter = nullptr;
 	IDXGIFactory* factory = nullptr; 
-    
-	LogCheckWithReturn(CreateDXGIFactory(__uuidof(IDXGIFactory) ,(void**)&factory),LogCategory::CriticalError);
+    bool UsingFactory2 = true;
 
+	if(CreateDXGIFactory2(0,__uuidof(IDXGIFactory2),(void**)&factory) != S_OK)
+	{
+		UsingFactory2 = false;
+		LogCheckWithReturn(CreateDXGIFactory(__uuidof(IDXGIFactory) ,(void**)&factory),LogCategory::CriticalError);
+	}
+	
+	
 	if(Desc.AdapterIndex == -1)
 	{       
 		for ( UINT i = 0;factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND;i++ )
@@ -107,8 +108,145 @@ StatusCode Device::Start(const Device::Description& params)
 
 	factory->EnumAdapters(Desc.AdapterIndex, &adapter);
 
-	// Find the feature level by creating a null device
-	D3D_FEATURE_LEVEL level;
-	LogCheckWithReturn(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 2, D3D11_SDK_VERSION, NULL, &level, nullptr ),LogCategory::CriticalError);
+	// Try to create a device with feature level 11.1 (DX 11.2, 11.3, 11.4, etc, also use feature level 11.1)
+	D3D_FEATURE_LEVEL level = D3D_FEATURE_LEVEL_11_1;
+	if(LogCheckAndContinue(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, device_flags, &level, 1, D3D11_SDK_VERSION, &D3DDevice, nullptr, &ImmediateContext ),
+		LogCategory::CriticalError) == StatusCode::InvalidArgument)
+	{
+		// If create device returned invalid argument, it's because DirectX 11.1 is not supported, try with 11.0
+		// Can't do the usual way of sending the array of feature levels and creating a null device because D3D11CreateDevice returns E_INVALIDARG if 11.1 is not supported
+		LogCheckWithReturn(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, device_flags, &level, 1, D3D11_SDK_VERSION, &D3DDevice, nullptr, &ImmediateContext ),LogCategory::CriticalError);
+	}
+	
+	// Check if the device can be casted to anything higher than 11.0
+	ID3D11Device* new_device;
+	if(D3DDevice->QueryInterface( __uuidof(ID3D11Device5), (void**)&new_device ) == S_OK)
+	{
+		D3DDevice = new_device;
+		DeviceVersion = 5;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11Device4), (void**)&new_device ) == S_OK)
+	{
+		D3DDevice = new_device;
+		DeviceVersion = 4;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11Device3), (void**)&new_device ) == S_OK)
+	{
+		D3DDevice = new_device;
+		DeviceVersion = 3;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11Device2), (void**)&new_device ) == S_OK)
+	{
+		D3DDevice = new_device;
+		DeviceVersion = 2;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11Device1), (void**)&new_device ) == S_OK)
+	{
+		D3DDevice = new_device;
+		DeviceVersion = 1;
+	}
+	else
+		DeviceVersion = 0;
 
+	// Check if the immediate context can be casted to anything higher than 11.0
+	ID3D11DeviceContext* new_context;
+	if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext4), (void**)&new_context ) == S_OK)
+	{
+		ImmediateContext = new_context;
+		ContextVersion = 4;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext3), (void**)&new_context ) == S_OK)
+	{
+		ImmediateContext = new_context;
+		ContextVersion = 3;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext2), (void**)&new_context ) == S_OK)
+	{
+		ImmediateContext = new_context;
+		ContextVersion = 2;
+	}
+	else if(D3DDevice->QueryInterface( __uuidof(ID3D11DeviceContext1), (void**)&new_context ) == S_OK)
+	{
+		ImmediateContext = new_context;
+		ContextVersion = 1;
+	}
+	else
+		ContextVersion = 0;
+
+	// If the device is not compute only, create a swap chain
+	if(!Desc.ComputeOnly)
+	{
+		DEVMODE lpDevMode;
+		memset(&lpDevMode, 0, sizeof(DEVMODE));
+		lpDevMode.dmSize = sizeof(DEVMODE);
+		lpDevMode.dmDriverExtra = 0;
+
+		EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &lpDevMode);
+
+		if(UsingFactory2)
+		{
+			DXGI_SWAP_CHAIN_DESC1 desc;
+			desc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
+			desc.Height = Desc.SwapChainDescription.BackbufferDescription.SizeY;
+			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferDescription.Usage;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
+			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
+			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
+			desc.Flags = Desc.SwapChainDescription.Flags;
+			desc.Format = Desc.SwapChainDescription.BackbufferDescription.Format;
+
+			DXGI_SWAP_CHAIN_FULLSCREEN_DESC fdesc;
+			if(Desc.WindowDescription.Fullscreen)
+			{
+				if(Desc.SwapChainDescription.VSync)
+				{
+					fdesc.RefreshRate.Numerator = lpDevMode.dmDisplayFrequency;
+					fdesc.RefreshRate.Denominator = 1;
+				}
+				else
+				{
+					fdesc.RefreshRate.Numerator = 0;
+					fdesc.RefreshRate.Denominator = 1;
+				}
+
+				fdesc.Scaling = Desc.SwapChainDescription.Scaling;
+				fdesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
+				fdesc.Windowed = false;
+			}
+			
+			LogCheckWithReturn(((IDXGIFactory2*)factory)->CreateSwapChainForHwnd(D3DDevice,WindowHandle,&desc,
+				Desc.WindowDescription.Fullscreen ? &fdesc : nullptr,nullptr,(IDXGISwapChain1**)&SwapChain),LogCategory::CriticalError);
+		}
+		else
+		{
+			DXGI_SWAP_CHAIN_DESC desc;
+			desc.BufferDesc.Format = Desc.SwapChainDescription.BackbufferDescription.Format;
+			desc.BufferDesc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
+			desc.BufferDesc.Height = Desc.SwapChainDescription.BackbufferDescription.SizeY;
+			desc.BufferDesc.Scaling = Desc.SwapChainDescription.Scaling;
+			desc.BufferDesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
+			desc.Windowed = Desc.WindowDescription.Fullscreen;
+			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferDescription.Usage;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
+			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
+			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
+			desc.Flags = Desc.SwapChainDescription.Flags;
+
+			if(Desc.SwapChainDescription.VSync)
+			{
+				desc.BufferDesc.RefreshRate.Numerator = lpDevMode.dmDisplayFrequency;
+				desc.BufferDesc.RefreshRate.Denominator = 1;
+			}
+			else
+			{
+				desc.BufferDesc.RefreshRate.Numerator = 0;
+				desc.BufferDesc.RefreshRate.Denominator = 1;
+			}
+
+			LogCheckWithReturn(factory->CreateSwapChain(D3DDevice,&desc,&SwapChain),LogCategory::CriticalError);
+		}
+	}
+	
 }
