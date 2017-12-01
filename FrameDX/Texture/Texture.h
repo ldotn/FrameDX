@@ -9,6 +9,16 @@ namespace FrameDX
 	class Texture
 	{
 	public:
+		Texture()
+		{
+			TextureResource = nullptr;	
+			TargetView = nullptr;	
+			ResourceView = nullptr;	
+			DepthStencil = nullptr;	
+			DepthSRV = nullptr;	
+			Version = -1;
+		}
+
 		struct Description
 		{
 			Description()
@@ -28,7 +38,18 @@ namespace FrameDX
 			uint32_t MSAAQuality;
 		};
 
-	private:
+		// Creates a texture from the backbuffer of the swap chain
+		// Depending on the access flags it also creates a SRV and a UAV
+		StatusCode CreateFromSwapChain(const Device& );
 
+	private:
+		int Version;
+
+		ID3D11Texture2D* TextureResource;	
+		ID3D11RenderTargetView* TargetView;
+		ID3D11ShaderResourceView* ResourceView;
+
+		ID3D11DepthStencilView* DepthStencil;
+		ID3D11ShaderResourceView* DepthSRV;
 	};
 }
