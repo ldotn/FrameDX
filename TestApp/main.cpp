@@ -28,7 +28,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	
 	LogCheck(dev.Start(desc),FrameDX::LogCategory::CriticalError);
 
-	
 	thread log_printer([]()
 	{
 		while(true)

@@ -209,8 +209,8 @@ StatusCode Device::Start(const Device::Description& params)
 			desc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
 			desc.Height = Desc.SwapChainDescription.BackbufferDescription.SizeY;
 			desc.BufferUsage = Desc.SwapChainDescription.BackbufferAccessFlags;
-			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
-			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;
@@ -251,8 +251,8 @@ StatusCode Device::Start(const Device::Description& params)
 			desc.BufferDesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
 			desc.Windowed = Desc.WindowDescription.Fullscreen;
 			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferAccessFlags;
-			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
-			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;
@@ -272,5 +272,8 @@ StatusCode Device::Start(const Device::Description& params)
 		}
 	}
 	
+	// Create backbuffer texure
+	Backbuffer.CreateFromSwapChain(this);
+
 	return StatusCode::Ok;
 }

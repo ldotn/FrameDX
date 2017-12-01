@@ -13,7 +13,6 @@ namespace FrameDX
 			D3DDevice = nullptr;
 			ImmediateContext = nullptr;
 			SwapChain = nullptr;
-			Backbuffer = nullptr;
 		}
 
 		// There can only be ONE keyboard callback function on the entire program, that's why it's static
@@ -43,6 +42,8 @@ namespace FrameDX
 				SwapChainDescription.ScanlineOrder = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 				SwapChainDescription.ScalingNewAPI = DXGI_SCALING_STRETCH;
 				SwapChainDescription.BackbufferAccessFlags = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+				SwapChainDescription.MSAACount = 1;
+				SwapChainDescription.MSAAQuality = 0;
 			}
 
 			D3D11_CULL_MODE CullMode;
@@ -68,6 +69,8 @@ namespace FrameDX
 			{
 				// If any of the size variables equals 0 then the size is computed from the window size
 				Texture::Description BackbufferDescription;
+				uint32_t MSAACount;
+				uint32_t MSAAQuality;
 				bool IsStereo;
 				uint32_t BufferCount;
 				DXGI_SWAP_EFFECT SwapType;
@@ -86,8 +89,8 @@ namespace FrameDX
 
 		ID3D11Device * GetDevice() { return D3DDevice; }
 
-#define __GET_DEVICE_DECL(v) ID3D11Device ## v * GetDevice##v() {\
-		if(LogAssertAndContinue(DeviceVersion >= v,LogCategory::Error)) return nullptr;\
+#define __GET_DEVICE_DECL(v) ID3D11Device ## v * GetDevice##v(bool LogWrongVersion = true) {\
+		if(LogWrongVersion && LogAssertAndContinue(DeviceVersion >= v,LogCategory::Error)) return nullptr;\
 		return (ID3D11Device ## v *)D3DDevice; }
 
 		__GET_DEVICE_DECL(1);
@@ -98,8 +101,8 @@ namespace FrameDX
 
 		ID3D11DeviceContext * GetImmediateContext(){ return ImmediateContext; };
 
-#define __GET_CONTEXT_DECL(v) ID3D11DeviceContext ## v * GetImmediateContext##v() {\
-		if(LogAssertAndContinue(ContextVersion >= v,LogCategory::Error)) return nullptr;\
+#define __GET_CONTEXT_DECL(v) ID3D11DeviceContext ## v * GetImmediateContext##v(bool LogWrongVersion = true) {\
+		if(LogWrongVersion && LogAssertAndContinue(ContextVersion >= v,LogCategory::Error)) return nullptr;\
 		return (ID3D11DeviceContext ## v *)ImmediateContext; }
 
 		__GET_CONTEXT_DECL(1);
@@ -109,8 +112,8 @@ namespace FrameDX
 
 		IDXGISwapChain * GetSwapChain(){ return SwapChain; };
 
-#define __GET_SWAP_DECL(v) IDXGISwapChain ## v * GetSwapChain##v() {\
-		if(LogAssertAndContinue(SwapChainVersion >= v,LogCategory::Error)) return nullptr;\
+#define __GET_SWAP_DECL(v) IDXGISwapChain ## v * GetSwapChain##v(bool LogWrongVersion = true) {\
+		if(LogWrongVersion && LogAssertAndContinue(SwapChainVersion >= v,LogCategory::Error)) return nullptr;\
 		return (IDXGISwapChain ## v *)SwapChain; }
 
 		__GET_SWAP_DECL(1);
@@ -129,7 +132,7 @@ namespace FrameDX
 
 		// Only valid if ComputeOnly == false
 		IDXGISwapChain * SwapChain;
-		Texture * Backbuffer; 
+		Texture Backbuffer; 
 		HWND WindowHandle; 
 	};
 }

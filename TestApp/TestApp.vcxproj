@@ -76,8 +76,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\VisualStudioProjects\FrameDX\FrameDX;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VisualStudioProjects\FrameDX\x64\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)\..\FrameDX;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -85,8 +85,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\VisualStudioProjects\FrameDX\FrameDX;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VisualStudioProjects\FrameDX\x64\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)\..\FrameDX;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)x64\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

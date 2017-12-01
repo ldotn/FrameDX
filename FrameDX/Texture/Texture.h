@@ -1,5 +1,6 @@
 #pragma once
 #include "stdafx.h"
+#include "../Core/Core.h"
 
 namespace FrameDX
 {
@@ -26,21 +27,16 @@ namespace FrameDX
 				SizeX = 0;
 				SizeY = 0;
 				Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				MSAACount = 1;
-				MSAAQuality = 0;
 			}
 
 			uint32_t SizeX;
 			uint32_t SizeY;
 			DXGI_FORMAT Format;
-		
-			uint32_t MSAACount;
-			uint32_t MSAAQuality;
-		};
+		} Desc;
 
 		// Creates a texture from the backbuffer of the swap chain
 		// Depending on the access flags it also creates a SRV and a UAV
-		StatusCode CreateFromSwapChain(const Device& );
+		StatusCode CreateFromSwapChain(Device * OwnerDevice);
 
 	private:
 		int Version;
