@@ -19,6 +19,7 @@ namespace FrameDX
 			DepthSRV = nullptr;	
 			UAV = nullptr;
 			Version = -1;
+			TextureResource = nullptr;
 		}
 
 		struct Description
@@ -29,6 +30,10 @@ namespace FrameDX
 				Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				BindFlags = D3D11_BIND_SHADER_RESOURCE;
 				Usage = D3D11_USAGE_DEFAULT;
+				MemoryLayout = D3D11_TEXTURE_LAYOUT_UNDEFINED;
+				MSAACount = 1;
+				MSAAQuality = 0;
+				MiscFlags = 0;
 			}
 
 			uint32_t MipLevels;
@@ -36,11 +41,11 @@ namespace FrameDX
 			uint32_t BindFlags;
 			D3D11_USAGE Usage;
 			uint32_t AccessFlags;
+			D3D11_TEXTURE_LAYOUT MemoryLayout;
+			uint32_t MSAACount;
+			uint32_t MSAAQuality;
+			uint32_t MiscFlags;
 		};
-
-		// Creates an empty texture 
-		virtual StatusCode CreateFromDescription(Device * OwnerDevice, const Texture::Description& Desc) = 0;
-
 		// Add functions to create custom SRVs, UAVs, etc HERE!
 
 		ID3D11RenderTargetView* RTV;
@@ -81,8 +86,8 @@ namespace FrameDX
 			uint32_t SizeY;
 		} Desc;
 
-		// Creates an empty texture 
-		virtual StatusCode CreateFromDescription(Device * OwnerDevice, const Texture::Description& Desc) final override;
+		// Creates a texture, optionally filling it with the provided vector
+		StatusCode CreateFromDescription(Device * OwnerDevice, const Texture2D::Description & params,vector<uint8_t> Data = vector<uint8_t>());
 
 		// Creates a texture from the backbuffer of the swap chain
 		// Depending on the access flags it also creates a SRV and a UAV
@@ -97,11 +102,16 @@ namespace FrameDX
 		}
 		virtual void FillUAVDescription(D3D11_UNORDERED_ACCESS_VIEW_DESC* DescPtr) final override
 		{
-			uav_desc.Format = Desc.Format;
-			uav_desc.Texture2D.MipSlice = 0;
-			uav_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+			DescPtr->Format = Desc.Format;
+			DescPtr->Texture2D.MipSlice = 0;
+			DescPtr->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 		}
 		virtual void FillRTVDescription(D3D11_RENDER_TARGET_VIEW_DESC* DescPtr) final override
+		{
+			DescPtr->Format = Desc.Format;
+			DescPtr->Texture2D.MipSlice = 0;
+			DescPtr->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		}
 		virtual void FillSRVDescription1(D3D11_SHADER_RESOURCE_VIEW_DESC1* DescPtr) final override
 		{
 			DescPtr->Format = Desc.Format;
@@ -111,7 +121,19 @@ namespace FrameDX
 			DescPtr->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		}
 		virtual void FillUAVDescription1(D3D11_UNORDERED_ACCESS_VIEW_DESC1* DescPtr) final override
+		{
+			DescPtr->Format = Desc.Format;
+			DescPtr->Texture2D.MipSlice = 0;
+			DescPtr->Texture2D.PlaneSlice = 0;
+			DescPtr->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+		}
 		virtual void FillRTVDescription1(D3D11_RENDER_TARGET_VIEW_DESC1* DescPtr) final override
+		{
+			DescPtr->Format = Desc.Format;
+			DescPtr->Texture2D.MipSlice = 0;
+			DescPtr->Texture2D.PlaneSlice = 0;
+			DescPtr->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		}
 	};
 }
 

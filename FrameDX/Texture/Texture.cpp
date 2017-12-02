@@ -34,17 +34,14 @@ StatusCode FrameDX::Texture::CreateSimpleUAV(Device * OwnerDevice)
 	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc;
-
+		FillUAVDescription(&uav_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateUnorderedAccessView(TextureResource,&uav_desc,&UAV),LogCategory::Error);
 	}
 	else if(Version == 1)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC1 uav_desc;
-		uav_desc.Format = Desc.Format;
-		uav_desc.Texture2D.MipSlice = 0;
-		uav_desc.Texture2D.PlaneSlice = 0;
-		uav_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+		FillUAVDescription1(&uav_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateUnorderedAccessView1(TextureResource,&uav_desc,(ID3D11UnorderedAccessView1**)&UAV),LogCategory::Error);
 	}
@@ -59,30 +56,18 @@ StatusCode FrameDX::Texture::CreateSimpleRTV(Device * OwnerDevice)
 	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
 	{
 		D3D11_RENDER_TARGET_VIEW_DESC rtv_desc;
-		rtv_desc.Format = Desc.Format;
-
-		if(Desc.ArrayCount > 0)
-		{
-			rtv_desc.Texture2D.MipSlice = 0;
-			rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		}
-		else
-		{
-			rtv_desc.Texture2DArray..MipSlice = 0;
-			rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		}
+		FillRTVDescription(&rtv_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateRenderTargetView(TextureResource,&rtv_desc,&RTV),LogCategory::Error);
 	}
 	else if(Version == 1)
 	{
 		D3D11_RENDER_TARGET_VIEW_DESC1 rtv_desc;
-		rtv_desc.Format = desc.Format;
-		rtv_desc.Texture2D.MipSlice = 0;
-		rtv_desc.Texture2D.PlaneSlice = 0;
-		rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		FillRTVDescription1(&rtv_desc);
 
-		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateRenderTargetView1(TextureResource,&rtv_desc,(ID3D11RenderTargetView1**)&RTV),LogCategory::Error);
+		ID3D11RenderTargetView1 * rtv;
+		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateRenderTargetView1(TextureResource,&rtv_desc,(ID3D11RenderTargetView1**)&rtv),LogCategory::Error);
+		RTV = rtv;
 	}
 	else
 		return StatusCode::InvalidArgument;
@@ -105,7 +90,7 @@ StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * OwnerDevice)
 	
 	// Get description
 	D3D11_TEXTURE2D_DESC desc;
-	TextureResource->GetDesc(&desc);
+	((ID3D11Texture2D*)TextureResource)->GetDesc(&desc);
 
 	Desc.SizeX = desc.Width;
 	Desc.SizeY = desc.Height;
@@ -125,18 +110,35 @@ StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * OwnerDevice)
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture2D::CreateFromDescription(Device * OwnerDevice, const Texture::Description & Desc)
+StatusCode FrameDX::Texture2D::CreateFromDescription(Device * OwnerDevice, const Texture2D::Description & params,vector<uint8_t> Data)
 {
+	/*
+	D3D11_SUBRESOURCE_DATA sdata;
+	sdata.pSysMem = Data.data();
+	sdata.SysMemPitch
+
+
 	if(OwnerDevice->GetDeviceVersion() >= 3)
 	{
 		D3D11_TEXTURE2D_DESC1 desc;
-		desc.
-
+		desc.ArraySize = 0;
+		desc.Format = params.Format;
+		desc.BindFlags = params.BindFlags;
+		desc.CPUAccessFlags = params.AccessFlags;
+		desc.MipLevels = params.MipLevels;
+		desc.Width = params.SizeX;
+		desc.Height = params.SizeY;
+		desc.TextureLayout = params.MemoryLayout;
+		desc.SampleDesc.Count = params.MSAACount;
+		desc.SampleDesc.Quality = params.MSAAQuality;
+		desc.MiscFlags = params.MiscFlags;
+		
+		OwnerDevice->GetDevice3()->CreateTexture2D1(&desc,)
 	}
 	else
 	{
 
 	}
-
+	*/
 	return StatusCode::Ok;
 }

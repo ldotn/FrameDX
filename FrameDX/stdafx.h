@@ -28,5 +28,6 @@
 #include <locale>
 #include <codecvt>
 #include <thread>
+#include <vector>
 
 using namespace std;

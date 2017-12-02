@@ -140,12 +140,16 @@ StatusCode Device::Start(const Device::Description& params)
 	
 	// Check if the device can be casted to anything higher than 11.0
 	ID3D11Device* new_device;
+	// Device5 crashes creating a render target on debug for some reason https://stackoverflow.com/questions/46633120/how-can-i-properly-create-a-rendertarget-using-id3d11device5
+#ifndef _DEBUG
 	if(D3DDevice->QueryInterface( __uuidof(ID3D11Device5), (void**)&new_device ) == S_OK)
 	{
 		D3DDevice = new_device;
 		DeviceVersion = 5;
 	}
-	else if(D3DDevice->QueryInterface( __uuidof(ID3D11Device4), (void**)&new_device ) == S_OK)
+	else 
+#endif 
+		if(D3DDevice->QueryInterface( __uuidof(ID3D11Device4), (void**)&new_device ) == S_OK)
 	{
 		D3DDevice = new_device;
 		DeviceVersion = 4;
@@ -205,12 +209,14 @@ StatusCode Device::Start(const Device::Description& params)
 
 		if(UsingFactory2)
 		{
+			SwapChainVersion = 1;
+
 			DXGI_SWAP_CHAIN_DESC1 desc;
 			desc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
 			desc.Height = Desc.SwapChainDescription.BackbufferDescription.SizeY;
 			desc.BufferUsage = Desc.SwapChainDescription.BackbufferAccessFlags;
-			desc.SampleDesc.Count = Desc.SwapChainDescription.MSAACount;
-			desc.SampleDesc.Quality = Desc.SwapChainDescription.MSAAQuality;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;
@@ -243,6 +249,8 @@ StatusCode Device::Start(const Device::Description& params)
 		}
 		else
 		{
+			SwapChainVersion = 0;
+
 			DXGI_SWAP_CHAIN_DESC desc;
 			desc.BufferDesc.Format = Desc.SwapChainDescription.BackbufferDescription.Format;
 			desc.BufferDesc.Width = Desc.SwapChainDescription.BackbufferDescription.SizeX; // Can be different than the window size
@@ -251,8 +259,8 @@ StatusCode Device::Start(const Device::Description& params)
 			desc.BufferDesc.ScanlineOrdering = Desc.SwapChainDescription.ScanlineOrder;
 			desc.Windowed = Desc.WindowDescription.Fullscreen;
 			desc.BufferUsage = (DXGI_USAGE)Desc.SwapChainDescription.BackbufferAccessFlags;
-			desc.SampleDesc.Count = Desc.SwapChainDescription.MSAACount;
-			desc.SampleDesc.Quality = Desc.SwapChainDescription.MSAAQuality;
+			desc.SampleDesc.Count = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
+			desc.SampleDesc.Quality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;

@@ -26,7 +26,7 @@ namespace FrameDX
 #define LogAssertWithReturn(cond,cat,ret) if(!cond) { FrameDX::Log._record(#cond L" != true",cat,__LINE__,MAKE_WIDE(__FUNCTION__),MAKE_WIDE(__FILE__)); return ret; }
 	// Checks an HRESULT/StatusCode and if it's not S_OK it stores to the log and returns the HRESULT converted to StatusCode. (thread safe)
 	// This is a macro, so it can be used to return out of a function on failure
-#define LogCheckWithReturn(cond,cat) {auto scode = ( FrameDX::StatusCode)cond; if(scode !=  FrameDX::StatusCode::Ok) {FrameDX::Log._record(wstring(#cond L" failed with code ") + FrameDX::StatusCodeToString(scode) ,cat,__LINE__,MAKE_WIDE(__FUNCTION__),MAKE_WIDE(__FILE__)); return scode; }}
+#define LogCheckWithReturn(cond,cat) {auto scode = ( FrameDX::StatusCode)cond; if(scode != FrameDX::StatusCode::Ok) {FrameDX::Log._record(wstring(#cond L" failed with code ") + FrameDX::StatusCodeToString(scode) ,cat,__LINE__,MAKE_WIDE(__FUNCTION__),MAKE_WIDE(__FILE__)); return scode; }}
 	// Checks an assert and if false stores to the log and triggers a debug break (thread safe)
 #define LogAssertWithBreak(cond,cat) if(!cond) { FrameDX::Log._record(#cond L" != true",cat,__LINE__,MAKE_WIDE(__FUNCTION__) ,MAKE_WIDE(__FILE__)); DebugBreak();  }
 	// Checks an assert, stores to the log if false and returns the !cond. Can be used inside an if (thread safe)

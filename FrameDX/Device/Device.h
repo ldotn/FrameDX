@@ -42,8 +42,8 @@ namespace FrameDX
 				SwapChainDescription.ScanlineOrder = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 				SwapChainDescription.ScalingNewAPI = DXGI_SCALING_STRETCH;
 				SwapChainDescription.BackbufferAccessFlags = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-				SwapChainDescription.MSAACount = 1;
-				SwapChainDescription.MSAAQuality = 0;
+				SwapChainDescription.BackbufferDescription.MSAACount = 1;
+				SwapChainDescription.BackbufferDescription.MSAAQuality = 0;
 			}
 
 			D3D11_CULL_MODE CullMode;
@@ -68,9 +68,8 @@ namespace FrameDX
 			struct
 			{
 				// If any of the size variables equals 0 then the size is computed from the window size
-				Texture::Description BackbufferDescription;
-				uint32_t MSAACount;
-				uint32_t MSAAQuality;
+				Texture2D::Description BackbufferDescription;
+
 				bool IsStereo;
 				uint32_t BufferCount;
 				DXGI_SWAP_EFFECT SwapType;
