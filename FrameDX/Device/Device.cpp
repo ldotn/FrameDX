@@ -75,12 +75,16 @@ StatusCode Device::Start(const Device::Description& params)
 		if(!RegisterClassEx( &wc ))
 			return LAST_ERROR;
 
+		int x_border = GetSystemMetrics(SM_CXSIZEFRAME);
+		int y_menu   = GetSystemMetrics(SM_CYMENU);
+		int y_border = GetSystemMetrics(SM_CYSIZEFRAME);
+
 		// Create the application's window
 		// This functions doesn't provide failure info with GetLastErro
 		WindowHandle = CreateWindow( wc.lpszClassName, Desc.WindowDescription.Name.c_str(),
 										  Desc.WindowDescription.Fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW, 0, 0, 
-										  Desc.WindowDescription.SizeX,
-										  Desc.WindowDescription.SizeY,
+										  Desc.WindowDescription.SizeX + 2*x_border,
+										  Desc.WindowDescription.SizeY + 2*y_border + y_menu,
 										  NULL, NULL, wc.hInstance, NULL );
 		if(!WindowHandle)
 			return LAST_ERROR;
@@ -141,6 +145,7 @@ StatusCode Device::Start(const Device::Description& params)
 	// Check if the device can be casted to anything higher than 11.0
 	ID3D11Device* new_device;
 	// Device5 crashes creating a render target on debug for some reason https://stackoverflow.com/questions/46633120/how-can-i-properly-create-a-rendertarget-using-id3d11device5
+	// Even more weird, it doesn't happen on my desktop, only on the notebook. Maybe an optimus/driver bug or something to do with Home vs Pro versions?
 #ifndef _DEBUG
 	if(D3DDevice->QueryInterface( __uuidof(ID3D11Device5), (void**)&new_device ) == S_OK)
 	{

@@ -8,6 +8,7 @@ namespace FrameDX
 	class Device;
 
 	// Abstract class for textures
+	// It stores the pointer to the device, so it must remain valid (it must remain valid anyway because DX)
 	class Texture
 	{
 	public:
@@ -20,6 +21,7 @@ namespace FrameDX
 			UAV = nullptr;
 			Version = -1;
 			TextureResource = nullptr;
+			OwnerDevice = nullptr;
 		}
 
 		struct Description
@@ -34,6 +36,8 @@ namespace FrameDX
 				MSAACount = 1;
 				MSAAQuality = 0;
 				MiscFlags = 0;
+				DebugName = L"Texture" + to_wstring(NumberOfTextures.fetch_add(1));
+				AccessFlags = 0;
 			}
 
 			uint32_t MipLevels;
@@ -45,7 +49,12 @@ namespace FrameDX
 			uint32_t MSAACount;
 			uint32_t MSAAQuality;
 			uint32_t MiscFlags;
+			wstring DebugName;
 		};
+		
+		// Makes a full copy from a source texture
+		StatusCode CopyFrom(Texture* Source);
+
 		// Add functions to create custom SRVs, UAVs, etc HERE!
 
 		ID3D11RenderTargetView* RTV;
@@ -61,12 +70,15 @@ namespace FrameDX
 		virtual void FillUAVDescription1(D3D11_UNORDERED_ACCESS_VIEW_DESC1* DescPtr) = 0;
 		virtual void FillRTVDescription1(D3D11_RENDER_TARGET_VIEW_DESC1* DescPtr) = 0;
 
-		StatusCode CreateSimpleSRV(Device * OwnerDevice);
-		StatusCode CreateSimpleUAV(Device * OwnerDevice);
-		StatusCode CreateSimpleRTV(Device * OwnerDevice);
+		StatusCode CreateSimpleSRV();
+		StatusCode CreateSimpleUAV();
+		StatusCode CreateSimpleRTV();
 		
 		int Version;
 		ID3D11Resource* TextureResource;
+		Device * OwnerDevice;
+
+		static atomic<int> NumberOfTextures;
 	};
 
 	class Texture2D : public Texture

@@ -29,5 +29,14 @@
 #include <codecvt>
 #include <thread>
 #include <vector>
+#include <wrl.h> // For the internal DirectXTK stuff
+#include <wincodec.h> // For the internal DirectXTK stuff
+#include "WICTextureLoader.h"
+#include "DirectXHelpers.h"
+#include "PlatformHelpers.h"
+#include "LoaderHelpers.h"
 
-using namespace std;
+namespace FrameDX
+{
+	using namespace std;
+}

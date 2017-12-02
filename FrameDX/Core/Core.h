@@ -23,7 +23,7 @@ namespace FrameDX
 		StillDrawing              = DXGI_ERROR_WAS_STILL_DRAWING
 	};
 	
-	inline wstring StatusCodeToString(StatusCode code)
+	inline std::wstring StatusCodeToString(StatusCode code)
 	{
 		switch(code)
 		{

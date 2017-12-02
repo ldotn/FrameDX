@@ -7,6 +7,8 @@
 #include <chrono>
 #include <conio.h>
 
+using namespace std;
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 {
     AllocConsole();
@@ -39,14 +41,29 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	});
 	log_printer.detach();
 
+	FrameDX::Texture2D tmp;
+	
+	auto tex_desc = FrameDX::Texture2D::Description();
+	tex_desc.SizeX = dev.GetBackbuffer()->Desc.SizeX;//desc.WindowDescription.SizeX;
+	tex_desc.SizeY = dev.GetBackbuffer()->Desc.SizeY;
+	tex_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	vector<uint8_t> img_data(tex_desc.SizeX*tex_desc.SizeY*4);
+	for(int i = 0;i < img_data.size();)
+	{
+		img_data[i++] = (3*i/27 + i / 31) % 255;
+		img_data[i++] = (5*i/31 + i / 63) % 255;
+		img_data[i++] = (7*i/121 + i / 127) % 255;
+		img_data[i++] = 255;
+	}
+		
+
+	tmp.CreateFromDescription(&dev,tex_desc,img_data);
 
 	dev.EnterMainLoop([&]()
 	{
-		ID3D11RenderTargetView* rt_array[] = {dev.GetBackbuffer()->RTV};
-		float clear_color[] = { 1.0, 0.0, 1.0, 1.0 };
-		dev.GetImmediateContext()->ClearRenderTargetView(dev.GetBackbuffer()->RTV,clear_color);
-		dev.GetImmediateContext()->OMSetRenderTargets(1,rt_array,dev.GetZBuffer()->DSV);
-		
+		dev.GetBackbuffer()->CopyFrom(&tmp);
+
 		dev.GetSwapChain()->Present(0,0);
 	});
 

@@ -4,8 +4,11 @@
 #include "..\Core\Log.h"
 
 using namespace FrameDX;
+using namespace std;
 
-StatusCode FrameDX::Texture::CreateSimpleSRV(Device * OwnerDevice)
+atomic<int> Texture::NumberOfTextures(0);
+
+StatusCode FrameDX::Texture::CreateSimpleSRV()
 {
 	// Device version 3 required to create a SRV1
 	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
@@ -28,7 +31,7 @@ StatusCode FrameDX::Texture::CreateSimpleSRV(Device * OwnerDevice)
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture::CreateSimpleUAV(Device * OwnerDevice)
+StatusCode FrameDX::Texture::CreateSimpleUAV()
 {
 	// Device version 3 required to create an UAV1
 	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
@@ -50,7 +53,7 @@ StatusCode FrameDX::Texture::CreateSimpleUAV(Device * OwnerDevice)
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture::CreateSimpleRTV(Device * OwnerDevice)
+StatusCode FrameDX::Texture::CreateSimpleRTV()
 {
 	// Device version 3 required to create a RTV1
 	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
@@ -65,17 +68,17 @@ StatusCode FrameDX::Texture::CreateSimpleRTV(Device * OwnerDevice)
 		D3D11_RENDER_TARGET_VIEW_DESC1 rtv_desc;
 		FillRTVDescription1(&rtv_desc);
 
-		ID3D11RenderTargetView1 * rtv;
-		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateRenderTargetView1(TextureResource,&rtv_desc,(ID3D11RenderTargetView1**)&rtv),LogCategory::Error);
-		RTV = rtv;
+		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateRenderTargetView1(TextureResource,&rtv_desc,(ID3D11RenderTargetView1**)&RTV),LogCategory::Error);
 	}
 	else
 		return StatusCode::InvalidArgument;
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * OwnerDevice)
+StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * device)
 {
+	OwnerDevice = device;
+
 	// Check swapchain version
 	if(OwnerDevice->GetSwapChainVersion() == 1)
 	{
@@ -98,47 +101,104 @@ StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * OwnerDevice)
 	Desc.BindFlags = desc.BindFlags;
 	Desc.Usage = desc.Usage;
 	Desc.AccessFlags = desc.CPUAccessFlags;
+	Desc.DebugName = L"Texture_Backbuffer";
+
+	// Set debug name
+	TextureResource->SetPrivateData(WKPDID_D3DDebugObjectName, Desc.DebugName.size()-1, Desc.DebugName.c_str());
 
 	// Check if an UAV or SRV needs to be created
 	if(desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
-		LogCheckWithReturn(CreateSimpleSRV(OwnerDevice),LogCategory::Error);
+		LogCheckWithReturn(CreateSimpleSRV(),LogCategory::Error);
 	if(desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
-		LogCheckWithReturn(CreateSimpleUAV(OwnerDevice),LogCategory::Error)
+		LogCheckWithReturn(CreateSimpleUAV(),LogCategory::Error)
 	if(desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-		LogCheckWithReturn(CreateSimpleRTV(OwnerDevice),LogCategory::Error)
+		LogCheckWithReturn(CreateSimpleRTV(),LogCategory::Error)
 
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture2D::CreateFromDescription(Device * OwnerDevice, const Texture2D::Description & params,vector<uint8_t> Data)
+StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Texture2D::Description & params,vector<uint8_t> Data)
 {
-	/*
-	D3D11_SUBRESOURCE_DATA sdata;
-	sdata.pSysMem = Data.data();
-	sdata.SysMemPitch
+	OwnerDevice = device;
+	Desc = params;
 
+	// Only transfer data
+	D3D11_SUBRESOURCE_DATA sdata;
+	sdata.pSysMem = nullptr;
+	if(Data.size() > 0)
+	{
+		// Check that the size is valid
+		auto bits = DirectX::LoaderHelpers::BitsPerPixel(Desc.Format);
+
+		// Make sure that the data is at byte level
+		// There are special formats that are not on byte level, ignore loading from them for now
+		if(LogAssertAndContinue(bits % 8 == 0,LogCategory::Error))
+			return StatusCode::NotImplemented;
+
+		auto bpp = bits / 8;
+		// Only use the simple memory layout for now
+		if(LogAssertAndContinue(Desc.MemoryLayout != D3D11_TEXTURE_LAYOUT_64K_STANDARD_SWIZZLE,LogCategory::Error))
+			return StatusCode::NotImplemented;
+
+		// Check that the buffer is big enough
+		if(LogAssertAndContinue(Data.size() >= Desc.SizeX*Desc.SizeY*bpp,LogCategory::Error))
+			return StatusCode::InvalidArgument;
+
+		// With all checks done, just fill the descriptor
+		sdata.pSysMem = Data.data();
+		sdata.SysMemPitch = Desc.SizeX * bpp;
+		sdata.SysMemSlicePitch = Desc.SizeY * Desc.SizeX * bpp;
+	}
 
 	if(OwnerDevice->GetDeviceVersion() >= 3)
 	{
 		D3D11_TEXTURE2D_DESC1 desc;
-		desc.ArraySize = 0;
-		desc.Format = params.Format;
-		desc.BindFlags = params.BindFlags;
-		desc.CPUAccessFlags = params.AccessFlags;
-		desc.MipLevels = params.MipLevels;
-		desc.Width = params.SizeX;
-		desc.Height = params.SizeY;
-		desc.TextureLayout = params.MemoryLayout;
-		desc.SampleDesc.Count = params.MSAACount;
-		desc.SampleDesc.Quality = params.MSAAQuality;
-		desc.MiscFlags = params.MiscFlags;
-		
-		OwnerDevice->GetDevice3()->CreateTexture2D1(&desc,)
+		desc.ArraySize = 1;
+		desc.Format = Desc.Format;
+		desc.BindFlags = Desc.BindFlags;
+		desc.CPUAccessFlags = Desc.AccessFlags;
+		desc.MipLevels = Desc.MipLevels;
+		desc.Width = Desc.SizeX;
+		desc.Height = Desc.SizeY;
+		desc.TextureLayout = Desc.MemoryLayout;
+		desc.SampleDesc.Count = Desc.MSAACount;
+		desc.SampleDesc.Quality = Desc.MSAAQuality;
+		desc.MiscFlags = Desc.MiscFlags;
+		desc.Usage = Desc.Usage;
+
+		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateTexture2D1(&desc,sdata.pSysMem ? &sdata : nullptr,(ID3D11Texture2D1**)&TextureResource),LogCategory::Error);
 	}
 	else
 	{
+		D3D11_TEXTURE2D_DESC desc;
+		desc.ArraySize = 1;
+		desc.Format = Desc.Format;
+		desc.BindFlags = Desc.BindFlags;
+		desc.CPUAccessFlags = Desc.AccessFlags;
+		desc.MipLevels = Desc.MipLevels;
+		desc.Width = Desc.SizeX;
+		desc.Height = Desc.SizeY;
+		desc.SampleDesc.Count = Desc.MSAACount;
+		desc.SampleDesc.Quality = Desc.MSAAQuality;
+		desc.MiscFlags = Desc.MiscFlags;
+		desc.Usage = Desc.Usage;
 
+		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateTexture2D(&desc,sdata.pSysMem ? &sdata : nullptr,(ID3D11Texture2D**)&TextureResource),LogCategory::Error);
 	}
-	*/
+	
+	// Set debug name
+	TextureResource->SetPrivateData(WKPDID_D3DDebugObjectName, Desc.DebugName.size()-1, Desc.DebugName.c_str());
+
 	return StatusCode::Ok;
+}
+
+StatusCode FrameDX::Texture::CopyFrom(Texture* Source)
+{
+	// Make sure that there's no error from before
+	SetLastError(S_OK);
+
+	// This returns void, using GetLastError to know if it worked or not
+	OwnerDevice->GetImmediateContext()->CopyResource(TextureResource,Source->TextureResource);
+
+	return LAST_ERROR;
 }

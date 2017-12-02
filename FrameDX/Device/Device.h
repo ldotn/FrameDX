@@ -124,8 +124,8 @@ namespace FrameDX
 		// Wraps a PeekMessage loop, and calls f on idle time
 		void EnterMainLoop(function<void()> LoopBody);
 
-		Texture * GetBackbuffer(){ return &Backbuffer; }
-		Texture * GetZBuffer(){ return &ZBuffer; }
+		Texture2D * GetBackbuffer(){ return &Backbuffer; }
+		Texture2D * GetZBuffer(){ return &ZBuffer; }
 	private:
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "Log.h"
 
-FrameDX::__log FrameDX::Log;
+using namespace FrameDX;
 
-void FrameDX::__log::_record(const wstring & Message, LogCategory Category, int Line, const wstring & Function, const wstring & File)
+__log FrameDX::Log;
+
+void __log::_record(const wstring & Message, LogCategory Category, int Line, const wstring & Function, const wstring & File)
 {
 	Entry e;
 	e.Category = Category;
@@ -17,7 +19,7 @@ void FrameDX::__log::_record(const wstring & Message, LogCategory Category, int 
 
 }
 
-void FrameDX::__log::PrintAll(wostream & OutputStream)
+void __log::PrintAll(wostream & OutputStream)
 {
 	for(const auto& e : Records)
 	{
@@ -30,7 +32,7 @@ void FrameDX::__log::PrintAll(wostream & OutputStream)
 
 }
 
-void FrameDX::__log::PrintRange(size_t Start, size_t End, wostream & OutputStream)
+void __log::PrintRange(size_t Start, size_t End, wostream & OutputStream)
 {
 	for(size_t i = Start; i < End && i < Records.size(); i++)
 	{
