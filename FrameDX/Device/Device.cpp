@@ -275,5 +275,7 @@ StatusCode Device::Start(const Device::Description& params)
 	// Create backbuffer texure
 	Backbuffer.CreateFromSwapChain(this);
 
+	// Create depth buffer
+	
 	return StatusCode::Ok;
 }

@@ -99,6 +99,10 @@ namespace FrameDX
 		__GET_DEVICE_DECL(4);
 		__GET_DEVICE_DECL(5);
 
+		int GetDeviceVersion() { return DeviceVersion; }
+		int GetContextVersion() { return ContextVersion; }
+		int GetSwapChainVersion() { return SwapChainVersion; }
+
 		ID3D11DeviceContext * GetImmediateContext(){ return ImmediateContext; };
 
 #define __GET_CONTEXT_DECL(v) ID3D11DeviceContext ## v * GetImmediateContext##v(bool LogWrongVersion = true) {\
@@ -118,8 +122,11 @@ namespace FrameDX
 
 		__GET_SWAP_DECL(1);
 
-		// Wraps a PeekMessage loop, and calls f on iddle time
+		// Wraps a PeekMessage loop, and calls f on idle time
 		void EnterMainLoop(function<void()> LoopBody);
+
+		Texture * GetBackbuffer(){ return &Backbuffer; }
+		Texture * GetZBuffer(){ return &ZBuffer; }
 	private:
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -132,7 +139,8 @@ namespace FrameDX
 
 		// Only valid if ComputeOnly == false
 		IDXGISwapChain * SwapChain;
-		Texture Backbuffer; 
+		Texture2D Backbuffer;
+		Texture2D ZBuffer; 
 		HWND WindowHandle; 
 	};
 }

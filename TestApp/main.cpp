@@ -42,6 +42,11 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 
 	dev.EnterMainLoop([&]()
 	{
+		ID3D11RenderTargetView* rt_array[] = {dev.GetBackbuffer()->RTV};
+		float clear_color[] = { 1.0, 0.0, 1.0, 1.0 };
+		dev.GetImmediateContext()->ClearRenderTargetView(dev.GetBackbuffer()->RTV,clear_color);
+		dev.GetImmediateContext()->OMSetRenderTargets(1,rt_array,dev.GetZBuffer()->DSV);
+		
 		dev.GetSwapChain()->Present(0,0);
 	});
 
