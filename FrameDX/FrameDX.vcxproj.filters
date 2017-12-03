@@ -26,6 +26,7 @@
     </ClInclude>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Shader\Shader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp">
@@ -38,5 +39,6 @@
     <ClCompile Include="Texture\Texture.cpp">
       <Filter>Texture</Filter>
     </ClCompile>
+    <ClCompile Include="Shader\Shader.cpp" />
   </ItemGroup>
 </Project>

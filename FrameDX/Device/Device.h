@@ -142,7 +142,35 @@ namespace FrameDX
 		Texture2D ZBuffer; 
 		HWND WindowHandle; 
 	};
+
+	// Utility struct to bind a resource on creation and unbind when it goes out of scope
+	template<typename T>
+	struct __ScopedBind
+	{
+		__ScopedBind(T * r)
+		{
+			Resource = r;
+			Resource->Bind();
+		}
+		__ScopedBind(T * r,uint32_t Slot)
+		{
+			Resource = r;
+			Resource->Bind(Slot);
+		}
+		~__ScopedBind()
+		{
+			Resource->Unbind();
+		}
+	private:
+		T * Resource;
+	};
+
+	template<typename T>
+	__ScopedBind<T> ScopedBind(T * ptr){ return __ScopedBind<T>(ptr); }
+	template<typename T>
+	__ScopedBind<T> ScopedBind(T * ptr,uint32_t Slot){ return __ScopedBind<T>(ptr,Slot); }
 }
 
 #undef __GET_DEVICE_DECL
 #undef __GET_CONTEXT_DECL
+#undef __GET_SWAP_DECL

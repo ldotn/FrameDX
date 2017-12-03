@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <conio.h>
+#include "Shader/Shader.h"
 
 using namespace std;
 
@@ -51,14 +52,36 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	vector<uint8_t> img_data(tex_desc.SizeX*tex_desc.SizeY*4);
 	for(int i = 0;i < img_data.size();)
 	{
-		img_data[i++] = (3*i/27 + i / 31) % 255;
-		img_data[i++] = (5*i/31 + i / 63) % 255;
-		img_data[i++] = (7*i/121 + i / 127) % 255;
+		auto v = [](int idx)
+		{
+			return 3 * (idx % 2) +
+				   1 * (idx % 4) +
+				   2 * (idx % 8) +
+				   7 * (idx % 16) +
+				   27 * (idx % 32) +
+				   2 * (idx % 64) +
+				   -12 * (idx % 128) +
+				   39 * (idx % 256) +
+				   20 * (idx % 512) +
+				   -21 * (idx % 1024) +
+				   7 * (idx % 2048);
+		};
+
+		img_data[i++] = v(i/321);
+		img_data[i++] = v(i/456);
+		img_data[i++] = v(i/789);
 		img_data[i++] = 255;
 	}
-		
 
 	tmp.CreateFromDescription(&dev,tex_desc,img_data);
+
+
+	FrameDX::ComputeShader dbg;
+
+	{
+		FrameDX::ScopedBind(&dbg);
+	}
+	
 
 	dev.EnterMainLoop([&]()
 	{
