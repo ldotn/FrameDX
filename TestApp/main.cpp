@@ -7,6 +7,7 @@
 #include <chrono>
 #include <conio.h>
 #include "Shader/Shader.h"
+#include "Core/Utils.h"
 
 using namespace std;
 
@@ -16,6 +17,16 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	freopen("CONIN$", "r", stdin);
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
+
+	thread log_printer([]()
+	{
+		size_t index = 0;
+		FrameDX::TimedLoop([&]()
+		{
+			index += FrameDX::Log.PrintRange(wcout,index);
+		},250ms);
+	});
+	log_printer.detach();
 
 	FrameDX::Device::KeyboardCallback = [](WPARAM key, FrameDX::KeyAction action)
 	{
@@ -28,64 +39,64 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	auto desc = FrameDX::Device::Description();
 	desc.WindowDescription.SizeX = 1920;
 	desc.WindowDescription.SizeY = 1080;
-	
+	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_UNORDERED_ACCESS;
+	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_SHADER_INPUT;
 	LogCheck(dev.Start(desc),FrameDX::LogCategory::CriticalError);
-
-	thread log_printer([]()
-	{
-		while(true)
-		{
-			system("cls");
-			FrameDX::Log.PrintAll(wcout);
-			this_thread::sleep_for(250ms);
-		}
-	});
-	log_printer.detach();
 
 	FrameDX::Texture2D tmp;
 	
 	auto tex_desc = FrameDX::Texture2D::Description();
-	tex_desc.SizeX = dev.GetBackbuffer()->Desc.SizeX;//desc.WindowDescription.SizeX;
+	tex_desc.SizeX = dev.GetBackbuffer()->Desc.SizeX;
 	tex_desc.SizeY = dev.GetBackbuffer()->Desc.SizeY;
 	tex_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 
 	vector<uint8_t> img_data(tex_desc.SizeX*tex_desc.SizeY*4);
-	for(int i = 0;i < img_data.size();)
+	for(int y = 0;y < tex_desc.SizeY;y++)
 	{
-		auto v = [](int idx)
+		static int i = 0;
+		for(int x = 0;x < tex_desc.SizeX;x++)
 		{
-			return 3 * (idx % 2) +
-				   1 * (idx % 4) +
-				   2 * (idx % 8) +
-				   7 * (idx % 16) +
-				   27 * (idx % 32) +
-				   2 * (idx % 64) +
-				   -12 * (idx % 128) +
-				   39 * (idx % 256) +
-				   20 * (idx % 512) +
-				   -21 * (idx % 1024) +
-				   7 * (idx % 2048);
-		};
-
-		img_data[i++] = v(i/321);
-		img_data[i++] = v(i/456);
-		img_data[i++] = v(i/789);
-		img_data[i++] = 255;
+			img_data[i++] = (x/float(tex_desc.SizeX))*255;
+			img_data[i++] = (y/float(tex_desc.SizeY))*255;
+			img_data[i++] = 0;
+			img_data[i++] = 255;
+		}
 	}
-
 	tmp.CreateFromDescription(&dev,tex_desc,img_data);
 
-
 	FrameDX::ComputeShader dbg;
+	dbg.CreateFromFile(&dev,L"TestCS.hlsl","main");
 
-	{
-		FrameDX::ScopedBind(&dbg);
-	}
+	dbg.LinkSRV(tmp.SRV,0);
+	dbg.LinkUAV(dev.GetBackbuffer()->UAV,0);
 	
+	DirectX::SimpleMath::Vector2 m_fontPos;
+	DirectX::SpriteBatch sprite_batch(dev.GetImmediateContext());
+	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");
 
 	dev.EnterMainLoop([&]()
 	{
-		dev.GetBackbuffer()->CopyFrom(&tmp);
+		{
+			ScopedBind(dbg);
+			dev.GetImmediateContext()->Dispatch(1920/16,1080/16,1);
+		}
+		
+		D3D11_VIEWPORT viewport;
+		viewport.Height = 1080;
+		viewport.Width = 1920;
+		viewport.MaxDepth = 1;
+		viewport.MinDepth = 0;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		dev.GetImmediateContext()->RSSetViewports(1,&viewport);
+		dev.GetImmediateContext()->OMSetRenderTargets(1,&dev.GetBackbuffer()->RTV,dev.GetBackbuffer()->DSV);
+
+		sprite_batch.Begin();
+
+		font.DrawString(&sprite_batch, to_wstring(10).c_str(), DirectX::g_XMZero,DirectX::Colors::White);
+
+		sprite_batch.End();
 
 		dev.GetSwapChain()->Present(0,0);
 	});

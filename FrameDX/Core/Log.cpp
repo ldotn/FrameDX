@@ -19,8 +19,9 @@ void __log::_record(const wstring & Message, LogCategory Category, int Line, con
 
 }
 
-void __log::PrintAll(wostream & OutputStream)
+size_t __log::PrintAll(wostream & OutputStream)
 {
+	size_t count = 0;
 	for(const auto& e : Records)
 	{
 		auto time = chrono::system_clock::to_time_t(e.Timestamp);
@@ -28,12 +29,15 @@ void __log::PrintAll(wostream & OutputStream)
 		localtime_s(&timeinfo, &time);
 		OutputStream << L"[" << put_time(&timeinfo, L"%T") << L"] " << cat_name[(int)e.Category] << L" : " << e.Message << endl;
 		OutputStream << L"    on line " << e.Line << L" of file " << e.File << L", function " << e.Function << endl;
+		count++;
 	}
 
+	return count;
 }
 
-void __log::PrintRange(size_t Start, size_t End, wostream & OutputStream)
+size_t __log::PrintRange(wostream & OutputStream,size_t Start, size_t End)
 {
+	size_t count = 0;
 	for(size_t i = Start; i < End && i < Records.size(); i++)
 	{
 		const auto& e = Records[i];
@@ -42,5 +46,8 @@ void __log::PrintRange(size_t Start, size_t End, wostream & OutputStream)
 		localtime_s(&timeinfo, &time);
 		OutputStream << L"[" << put_time(&timeinfo, L"%T") << L"] " << cat_name[(int)e.Category] << L" : " << e.Message << endl;
 		OutputStream << L"    on line " << e.Line << L" of file " << e.File << L", function " << e.Function << endl;
+		count++;
 	}
+
+	return count;
 }

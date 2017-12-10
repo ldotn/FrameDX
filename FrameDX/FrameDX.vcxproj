@@ -147,8 +147,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Core\Binding.h" />
     <ClInclude Include="Core\Core.h" />
     <ClInclude Include="Core\Log.h" />
+    <ClInclude Include="Core\Utils.h" />
     <ClInclude Include="Device\Device.h" />
     <ClInclude Include="Shader\Shader.h" />
     <ClInclude Include="stdafx.h" />
@@ -166,6 +168,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Texture\Texture.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="calibri.spritefont" />
+    <None Include="consolas.spritefont" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

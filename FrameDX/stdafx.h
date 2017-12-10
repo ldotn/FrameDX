@@ -35,6 +35,10 @@
 #include "DirectXHelpers.h"
 #include "PlatformHelpers.h"
 #include "LoaderHelpers.h"
+#include <D3Dcompiler.h>
+#include <SpriteBatch.h>
+#include <SimpleMath.h>
+#include <SpriteFont.h>
 
 namespace FrameDX
 {

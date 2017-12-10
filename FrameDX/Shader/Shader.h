@@ -1,19 +1,22 @@
 #pragma once
 #include "stdafx.h"
 #include "../Core/Core.h"
-#include "../Device/Device.h"
+#include "../Core/Binding.h"
 
 namespace FrameDX
 {
-	class ComputeShader
+	class ComputeShader : public Bindable
 	{
 	public:
-		StatusCode CreateFromFile(Device * OwnerDevice, std::wstring FilePath);
+		StatusCode CreateFromFile( Device * OwnerDevice, 
+								   wstring FilePath,
+								   string EntryPoint,
+								   bool FullDebug = false, 
+								   vector<pair<string,string>> Defines = {});
 
-		StatusCode Bind();
-		StatusCode Unbind();
+		virtual StatusCode Bind() final override;
+		virtual StatusCode Unbind() final override;
 	private:
 		ID3D11ComputeShader * Shader;
-		Device * OwnerDevice;
 	};
 }

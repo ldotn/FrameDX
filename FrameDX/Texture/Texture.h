@@ -99,7 +99,7 @@ namespace FrameDX
 		} Desc;
 
 		// Creates a texture, optionally filling it with the provided vector
-		StatusCode CreateFromDescription(Device * OwnerDevice, const Texture2D::Description & params,vector<uint8_t> Data = vector<uint8_t>());
+		StatusCode CreateFromDescription(Device * OwnerDevice, const Texture2D::Description & params,vector<uint8_t> Data = {});
 
 		// Creates a texture from the backbuffer of the swap chain
 		// Depending on the access flags it also creates a SRV and a UAV

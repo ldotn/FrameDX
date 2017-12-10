@@ -106,12 +106,12 @@ StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * device)
 	// Set debug name
 	TextureResource->SetPrivateData(WKPDID_D3DDebugObjectName, Desc.DebugName.size()-1, Desc.DebugName.c_str());
 
-	// Check if an UAV or SRV needs to be created
-	if(desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
+	// Check if an UAV, SRV or RTV needs to be created
+	if(Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
 		LogCheckWithReturn(CreateSimpleSRV(),LogCategory::Error);
-	if(desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
+	if(Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
 		LogCheckWithReturn(CreateSimpleUAV(),LogCategory::Error)
-	if(desc.BindFlags & D3D11_BIND_RENDER_TARGET)
+	if(Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
 		LogCheckWithReturn(CreateSimpleRTV(),LogCategory::Error)
 
 	return StatusCode::Ok;
@@ -152,6 +152,8 @@ StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Text
 
 	if(OwnerDevice->GetDeviceVersion() >= 3)
 	{
+		Version = 1;
+
 		D3D11_TEXTURE2D_DESC1 desc;
 		desc.ArraySize = 1;
 		desc.Format = Desc.Format;
@@ -170,6 +172,8 @@ StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Text
 	}
 	else
 	{
+		Version = 0;
+
 		D3D11_TEXTURE2D_DESC desc;
 		desc.ArraySize = 1;
 		desc.Format = Desc.Format;
@@ -188,6 +192,14 @@ StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Text
 	
 	// Set debug name
 	TextureResource->SetPrivateData(WKPDID_D3DDebugObjectName, Desc.DebugName.size()-1, Desc.DebugName.c_str());
+
+	// Check if an UAV, SRV or RTV needs to be created
+	if(Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
+		LogCheckWithReturn(CreateSimpleSRV(),LogCategory::Error);
+	if(Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
+		LogCheckWithReturn(CreateSimpleUAV(),LogCategory::Error)
+	if(Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
+		LogCheckWithReturn(CreateSimpleRTV(),LogCategory::Error)
 
 	return StatusCode::Ok;
 }

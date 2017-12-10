@@ -27,6 +27,12 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Shader\Shader.h" />
+    <ClInclude Include="Core\Binding.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Utils.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp">
@@ -40,5 +46,9 @@
       <Filter>Texture</Filter>
     </ClCompile>
     <ClCompile Include="Shader\Shader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="consolas.spritefont" />
+    <None Include="calibri.spritefont" />
   </ItemGroup>
 </Project>
