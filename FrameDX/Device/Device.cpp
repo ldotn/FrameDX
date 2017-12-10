@@ -125,7 +125,7 @@ StatusCode Device::Start(const Device::Description& params)
 			wcout << L"GPU : " << i << L" , " << desc.Description << endl;
 		} 
 
-		wcout << L"Select GPU : " << endl;
+		wcout << L"Select GPU : ";
 		int adapterIDX = 0;
 		cin >> Desc.AdapterIndex;
 	}

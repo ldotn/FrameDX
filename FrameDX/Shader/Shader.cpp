@@ -1,12 +1,16 @@
 #include "stdafx.h"
 #include "Shader.h"
 #include "../Core/Utils.h"
-
 using namespace FrameDX;
 
-StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
+ID3DBlob * ReadFile(ID3D11Device* device,
+					vector<pair<string,string>>& Defines,
+					bool FullDebug, 
+					wstring& FilePath,
+					string& EntryPoint,
+					StatusCode& status)
 {
-	OwnerDevice = device;
+	uint32_t flags = 0;
 
 	vector<D3D_SHADER_MACRO> defs;
 	if(Defines.size() > 0)
@@ -19,8 +23,6 @@ StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FileP
 			get<0>(d)->Definition = get<1>(d)->second.c_str();
 		}
 	}
-
-	uint32_t flags = 0;
 
 	if(FullDebug)
 	{
@@ -44,9 +46,9 @@ StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FileP
 
     ID3DBlob* shader_blob = nullptr;
     ID3DBlob* error_blob = nullptr;
-	StatusCode status = LogCheckAndContinue(D3DCompileFromFile( FilePath.c_str(), defs.data(), D3D_COMPILE_STANDARD_FILE_INCLUDE,
-															    EntryPoint.c_str(), "cs_5_0",
-															    flags, 0, &shader_blob, &error_blob ),LogCategory::Error);
+	status = LogCheckAndContinue(D3DCompileFromFile( FilePath.c_str(), defs.data(), D3D_COMPILE_STANDARD_FILE_INCLUDE,
+											         EntryPoint.c_str(), "cs_5_0",
+													 flags, 0, &shader_blob, &error_blob ),LogCategory::Error);
     if(status != StatusCode::Ok)
 	{
         if(error_blob)
@@ -57,11 +59,26 @@ StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FileP
 
         if(shader_blob)
            shader_blob->Release();
-		return status;
+		return nullptr;
 	}
 
+	return shader_blob;
+}
+
+StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
+{
+	StatusCode status;
+	ID3DBlob * shader_blob = ReadFile(device->GetDevice(),Defines,FullDebug,FilePath,EntryPoint,status);
+	
+	if(status != StatusCode::Ok) return status;
+
+	OwnerDevice = device;
 	LogCheckWithReturn(OwnerDevice->GetDevice()->CreateComputeShader(shader_blob->GetBufferPointer(),shader_blob->GetBufferSize(),nullptr,&Shader),LogCategory::Error);
 
+	ID3D11ShaderReflection* reflector = NULL; 
+	LogCheckWithReturn(D3DReflect( shader_blob->GetBufferPointer(), shader_blob->GetBufferSize(), IID_ID3D11ShaderReflection, (void**) &reflector),LogCategory::Error);
+	
+	reflector->GetThreadGroupSize(&GroupSizeX,&GroupSizeY,&GroupSizeZ);
 	return StatusCode::Ok;
 }
 
@@ -105,4 +122,29 @@ StatusCode FrameDX::ComputeShader::Unbind()
 		im->CSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
 
 	return StatusCode::Ok;	
+}
+
+StatusCode FrameDX::ComputeShader::Dispatch(Device & Dev, uint32_t SizeX, uint32_t SizeY, uint32_t SizeZ, bool IsAbsolute)
+{
+	uint32_t groups_x,groups_y,groups_z;
+	if(IsAbsolute)
+	{
+		groups_x = SizeX;
+		groups_y = SizeY;
+		groups_z = SizeZ;
+	}
+	else
+	{
+		groups_x = ceil(SizeX,GroupSizeX);
+		groups_y = ceil(SizeY,GroupSizeY);
+		groups_z = ceil(SizeZ,GroupSizeZ);
+	}
+
+	LogAssertWithReturn(groups_x > 0,LogCategory::Error, StatusCode::InvalidArgument);
+	LogAssertWithReturn(groups_y > 0,LogCategory::Error, StatusCode::InvalidArgument);
+	LogAssertWithReturn(groups_z > 0,LogCategory::Error, StatusCode::InvalidArgument);
+
+	Dev.GetImmediateContext()->Dispatch(groups_x,groups_y,groups_z);
+
+	return StatusCode::Ok;
 }

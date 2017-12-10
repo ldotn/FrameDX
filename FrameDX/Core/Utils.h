@@ -70,5 +70,7 @@ namespace FrameDX
 			this_thread::sleep_for(d - (t1 - t0));
 		}
 	}
-
+	
+	template<typename T>
+	T ceil(T x,T y){ return x/y + (x % y != 0); }
 }

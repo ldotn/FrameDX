@@ -65,24 +65,25 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	}
 	tmp.CreateFromDescription(&dev,tex_desc,img_data);
 
-	FrameDX::ComputeShader dbg;
-	dbg.CreateFromFile(&dev,L"TestCS.hlsl","main");
+	FrameDX::ComputeShader test_cs;
+	test_cs.CreateFromFile(&dev,L"TestCS.hlsl","main");
 
-	dbg.LinkSRV(tmp.SRV,0);
-	dbg.LinkUAV(dev.GetBackbuffer()->UAV,0);
+	test_cs.LinkSRV(tmp.SRV,0);
+	test_cs.LinkUAV(dev.GetBackbuffer()->UAV,0);
 	
-	DirectX::SimpleMath::Vector2 m_fontPos;
+	/*DirectX::SimpleMath::Vector2 m_fontPos;
 	DirectX::SpriteBatch sprite_batch(dev.GetImmediateContext());
-	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");
+	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");*/
 
 	dev.EnterMainLoop([&]()
 	{
 		{
-			ScopedBind(dbg);
-			dev.GetImmediateContext()->Dispatch(1920/16,1080/16,1);
+			ScopedBind(test_cs);
+			// This handles the division by group size automatically
+			test_cs.Dispatch(dev,dev.GetBackbuffer()->Desc.SizeX,dev.GetBackbuffer()->Desc.SizeY);
 		}
 		
-		D3D11_VIEWPORT viewport;
+		/*D3D11_VIEWPORT viewport;
 		viewport.Height = 1080;
 		viewport.Width = 1920;
 		viewport.MaxDepth = 1;
@@ -96,7 +97,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 
 		font.DrawString(&sprite_batch, to_wstring(10).c_str(), DirectX::g_XMZero,DirectX::Colors::White);
 
-		sprite_batch.End();
+		sprite_batch.End();*/
 
 		dev.GetSwapChain()->Present(0,0);
 	});
