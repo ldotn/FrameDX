@@ -7,10 +7,11 @@ using namespace FrameDX;
 
 function<void(WPARAM,KeyAction)> Device::KeyboardCallback;
 
-void FrameDX::Device::EnterMainLoop(function<void()> LoopBody)
+void FrameDX::Device::EnterMainLoop(function<void(double)> LoopBody)
 {
 	MSG msg;
 	msg.message = WM_NULL;
+	last_call_time = chrono::high_resolution_clock::now();
 
 	while(msg.message != WM_QUIT)
 	{
@@ -25,7 +26,12 @@ void FrameDX::Device::EnterMainLoop(function<void()> LoopBody)
 			}
 		}
 		else
-			LoopBody();
+		{
+			// Measure time between now and the last call
+			auto time = chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - last_call_time);
+			last_call_time = chrono::high_resolution_clock::now();
+			LoopBody(time.count());
+		}
 	}
 }
 
@@ -202,6 +208,14 @@ StatusCode Device::Start(const Device::Description& params)
 	else
 		ContextVersion = 0;
 
+	// While it's supposed that sending a size of 0 makes DXGI get the size directly from the window, it ends up a little bit smaller than expected
+	// Also, i need to make sure the same size as the backbuffer is sent to the DSV, so if no size is provided manually, it's set to the window size
+	if(Desc.SwapChainDescription.BackbufferDescription.SizeX == 0 || Desc.SwapChainDescription.BackbufferDescription.SizeY == 0)
+	{
+		Desc.SwapChainDescription.BackbufferDescription.SizeX = Desc.WindowDescription.SizeX;
+		Desc.SwapChainDescription.BackbufferDescription.SizeY = Desc.WindowDescription.SizeY;
+	}
+
 	// If the device is not compute only, create a swap chain
 	if(!Desc.ComputeOnly)
 	{
@@ -283,12 +297,49 @@ StatusCode Device::Start(const Device::Description& params)
 
 			LogCheckWithReturn(factory->CreateSwapChain(D3DDevice,&desc,&SwapChain),LogCategory::CriticalError);
 		}
-	}
-	
-	// Create backbuffer texure
-	Backbuffer.CreateFromSwapChain(this);
 
-	// Create depth buffer
+		
+		// Create backbuffer texure
+		Backbuffer.CreateFromBackbuffer(this);
+
+		// Create depth buffer
+		auto z_desc = FrameDX::Texture2D::Description();
+		z_desc.SizeX = Desc.SwapChainDescription.BackbufferDescription.SizeX;
+		z_desc.SizeY = Desc.SwapChainDescription.BackbufferDescription.SizeY;
+		z_desc.MipLevels = 1;
+		z_desc.Format = DXGI_FORMAT_R24G8_TYPELESS; //DXGI_FORMAT_D24_UNORM_S8_UINT, but using typeless to bind the buffer as a texture later
+		z_desc.MSAACount = Desc.SwapChainDescription.BackbufferDescription.MSAACount;
+		z_desc.MSAAQuality = Desc.SwapChainDescription.BackbufferDescription.MSAAQuality;
+		z_desc.Usage = D3D11_USAGE_DEFAULT;
+		z_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+		z_desc.AccessFlags = 0;
+		z_desc.MiscFlags = 0;	
+		// Need to create the views separately, as they use a different format
+		LogCheckWithReturn(ZBuffer.CreateFromDescription(this,z_desc,{},0),LogCategory::Error);
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC zbuffer_dsv_desc;
+		ZBuffer.FillDSVDescription(&zbuffer_dsv_desc);
+		zbuffer_dsv_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		LogCheckWithReturn(ZBuffer.CreateDSV(&zbuffer_dsv_desc),LogCategory::Error);
+
+		auto srv_version = ZBuffer.GetBestViewVersion<Texture::ViewType::SRV>();
+		if(srv_version == 1)
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC1 zbuffer_srv_desc;
+			ZBuffer.FillSRVDescription1(&zbuffer_srv_desc);
+			zbuffer_srv_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			LogCheckWithReturn(ZBuffer.CreateSRV(&zbuffer_srv_desc),LogCategory::Error);
+		}
+		else if(srv_version == 0)
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC zbuffer_srv_desc;
+			ZBuffer.FillSRVDescription(&zbuffer_srv_desc);
+			zbuffer_srv_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			LogCheckWithReturn(ZBuffer.CreateSRV(&zbuffer_srv_desc),LogCategory::Error);
+		}
+		else 
+			return StatusCode::InvalidArgument;
+	}
 	
 	return StatusCode::Ok;
 }

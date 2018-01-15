@@ -98,10 +98,6 @@ namespace FrameDX
 		__GET_DEVICE_DECL(4);
 		__GET_DEVICE_DECL(5);
 
-		int GetDeviceVersion() { return DeviceVersion; }
-		int GetContextVersion() { return ContextVersion; }
-		int GetSwapChainVersion() { return SwapChainVersion; }
-
 		ID3D11DeviceContext * GetImmediateContext(){ return ImmediateContext; };
 
 #define __GET_CONTEXT_DECL(v) ID3D11DeviceContext ## v * GetImmediateContext##v(bool LogWrongVersion = true) {\
@@ -120,9 +116,13 @@ namespace FrameDX
 		return (IDXGISwapChain ## v *)SwapChain; }
 
 		__GET_SWAP_DECL(1);
+		
+		uint32_t GetDeviceVersion() { return DeviceVersion; }
+		uint32_t GetContextVersion() { return ContextVersion; }
+		uint32_t GetSwapChainVersion() { return SwapChainVersion; }
 
 		// Wraps a PeekMessage loop, and calls f on idle time
-		void EnterMainLoop(function<void()> LoopBody);
+		void EnterMainLoop(function<void(double)> LoopBody);
 
 		Texture2D * GetBackbuffer(){ return &Backbuffer; }
 		Texture2D * GetZBuffer(){ return &ZBuffer; }
@@ -140,7 +140,9 @@ namespace FrameDX
 		IDXGISwapChain * SwapChain;
 		Texture2D Backbuffer;
 		Texture2D ZBuffer; 
-		HWND WindowHandle; 
+		HWND WindowHandle;
+
+		std::chrono::time_point<std::chrono::high_resolution_clock> last_call_time;
 	};
 }
 

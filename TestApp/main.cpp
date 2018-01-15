@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_SECURE_NO_WARNINGS
 #include "Device/Device.h"
 #include "Core/Log.h"
 #include <io.h>
@@ -6,8 +6,10 @@
 #include <thread>
 #include <chrono>
 #include <conio.h>
-#include "Shader/Shader.h"
+#include "Shader/Shaders.h"
 #include "Core/Utils.h"
+#include "Device/OutputContext.h"
+#include "Mesh/Mesh.h"
 
 using namespace std;
 
@@ -71,11 +73,47 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	test_cs.LinkSRV(tmp.SRV,0);
 	test_cs.LinkUAV(dev.GetBackbuffer()->UAV,0);
 	
-	/*DirectX::SimpleMath::Vector2 m_fontPos;
+	DirectX::SimpleMath::Vector2 m_fontPos;
 	DirectX::SpriteBatch sprite_batch(dev.GetImmediateContext());
-	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");*/
+	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");
 
-	dev.EnterMainLoop([&]()
+	FrameDX::OutputContext outc(&dev);
+	D3D11_VIEWPORT viewport = {};
+	viewport.Height = 1080;
+	viewport.Width = 1920;
+	viewport.MaxDepth = 1;
+	viewport.MinDepth = 0;
+
+	outc.SetViewport(viewport,0);
+	outc.LinkRTV(dev.GetBackbuffer()->RTV,0);
+	outc.LinkDSV(dev.GetZBuffer()->DSV);
+
+	FrameDX::VertexShader test_vs;
+	test_vs.CreateFromFile(&dev,L"TestVS.hlsl","main");
+	FrameDX::PixelShader test_ps;
+	test_ps.CreateFromFile(&dev,L"TestPS.hlsl","main");
+
+	D3D11_RASTERIZER_DESC rs_desc = {};
+	rs_desc.FillMode = D3D11_FILL_SOLID;
+	rs_desc.CullMode = D3D11_CULL_NONE;
+
+	ID3D11RasterizerState* raster_state;
+	dev.GetDevice()->CreateRasterizerState(&rs_desc,&raster_state);
+	outc.LinkRasterState(raster_state);
+
+	D3D11_DEPTH_STENCIL_DESC ds_desc = {};
+	ds_desc.DepthEnable = true;
+	ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	ds_desc.DepthFunc = D3D11_COMPARISON_LESS;
+	
+	ID3D11DepthStencilState* depth_state;
+	dev.GetDevice()->CreateDepthStencilState(&ds_desc,&depth_state);
+	outc.LinkDepthState(depth_state);
+
+	FrameDX::Mesh<FrameDX::StandardVertex> dbg_obj;
+	dbg_obj.LoadFromOBJ(&dev, "test_obj.obj");
+
+	dev.EnterMainLoop([&](double GlobalTimeNanoseconds)
 	{
 		{
 			ScopedBind(test_cs);
@@ -83,24 +121,40 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 			test_cs.Dispatch(dev,dev.GetBackbuffer()->Desc.SizeX,dev.GetBackbuffer()->Desc.SizeY);
 		}
 		
-		/*D3D11_VIEWPORT viewport;
-		viewport.Height = 1080;
-		viewport.Width = 1920;
-		viewport.MaxDepth = 1;
-		viewport.MinDepth = 0;
-		viewport.TopLeftX = 0;
-		viewport.TopLeftY = 0;
-		dev.GetImmediateContext()->RSSetViewports(1,&viewport);
-		dev.GetImmediateContext()->OMSetRenderTargets(1,&dev.GetBackbuffer()->RTV,dev.GetBackbuffer()->DSV);
+		{
+			// Bind all the output stuff, render targets, raster state, etc
+			ScopedBind(outc);
 
-		sprite_batch.Begin();
+			dev.GetImmediateContext()->ClearDepthStencilView(dev.GetZBuffer()->DSV,D3D11_CLEAR_DEPTH,1.0f,0);
 
-		font.DrawString(&sprite_batch, to_wstring(10).c_str(), DirectX::g_XMZero,DirectX::Colors::White);
+			/*
+			{
+				//esto junto con el vertex e index buffer tienen que estar en un bindable "Mesh"
 
-		sprite_batch.End();*/
+				dev.GetImmediateContext()->IASetInputLayout( in_layout );
+				dev.GetImmediateContext()->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+				dev.GetImmediateContext()->IASetIndexBuffer(index_buffer,DXGI_FORMAT_R32_UINT,0);
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				dev.GetImmediateContext()->IASetVertexBuffers(0,1,&vertex_buffer,&stride,&offset);
+
+				// Bind shaders
+				ScopedBind(test_vs);
+				ScopedBind(test_ps);
+
+				dev.GetImmediateContext()->DrawIndexed(indices.size(),0,0);
+			}*/
+
+			/*sprite_batch.Begin();
+			font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
+			sprite_batch.End();*/
+		}
+		
 
 		dev.GetSwapChain()->Present(0,0);
 	});
+
+	// Not releasing any resources here... Should implement that eventually
 
 	return 0;
 }

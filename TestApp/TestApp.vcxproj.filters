@@ -23,5 +23,11 @@
     <FxCompile Include="TestCS.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
+    <FxCompile Include="TestVS.hlsl">
+      <Filter>Source Files</Filter>
+    </FxCompile>
+    <FxCompile Include="TestPS.hlsl">
+      <Filter>Source Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

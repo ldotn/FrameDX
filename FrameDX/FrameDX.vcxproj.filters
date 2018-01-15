@@ -10,6 +10,12 @@
     <Filter Include="Texture">
       <UniqueIdentifier>{75432003-fd56-4ea4-8dff-ee8658b125cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{c8250004-d1c5-4dc7-8bf5-5371c513c724}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Mesh">
+      <UniqueIdentifier>{b8e75c91-d99e-42a4-aac7-a61b20c42812}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Device\Device.h">
@@ -26,12 +32,20 @@
     </ClInclude>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Shader\Shader.h" />
     <ClInclude Include="Core\Binding.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Utils.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader\Shaders.h">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Device\OutputContext.h">
+      <Filter>Device</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh\Mesh.h">
+      <Filter>Mesh</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -45,7 +59,11 @@
     <ClCompile Include="Texture\Texture.cpp">
       <Filter>Texture</Filter>
     </ClCompile>
-    <ClCompile Include="Shader\Shader.cpp" />
+    <ClCompile Include="Shader\Shaders.cpp">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Device\OutputContext.cpp" />
+    <ClCompile Include="Mesh\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="consolas.spritefont" />

@@ -39,6 +39,8 @@
 #include <SpriteBatch.h>
 #include <SimpleMath.h>
 #include <SpriteFont.h>
+#include "tiny_obj_loader.h"
+#include <unordered_map>
 
 namespace FrameDX
 {
