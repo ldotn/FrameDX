@@ -41,6 +41,7 @@
 #include <SpriteFont.h>
 #include "tiny_obj_loader.h"
 #include <unordered_map>
+#include <cstdint>
 
 namespace FrameDX
 {

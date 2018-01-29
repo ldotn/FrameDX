@@ -126,6 +126,45 @@ namespace FrameDX
 
 		Texture2D * GetBackbuffer(){ return &Backbuffer; }
 		Texture2D * GetZBuffer(){ return &ZBuffer; }
+
+		struct BindInfo
+		{
+			enum { Input, Output } Usage;
+			uint32_t Slot;
+			enum { Vertex, Hull, Domain, Geometry, Pixel } ShaderStage;
+		};
+
+		// Registers/Removes a resource without any kind of check
+		// IF IT ALREADY EXISTS IT WILL OVERWRITE THE RECORD
+		void RegisterBoundResource(uintptr_t Resource, BindInfo Info) 
+		{ 
+			BoundResources[Resource] = { true, Info }; 
+		}
+		void UnregisterBoundResource(uintptr_t Resource) 
+		{ 
+			auto v = BoundResources.find(Resource);
+			if (v != BoundResources.end())
+				v->second.first = false;
+			else
+				// TODO: Use the debug names here, much more useful than just a big number
+				LogMsg(wstring(L"Resource ") + to_wstring(Resource) + wstring(L" wasn't registered before  trying to unregister"), LogCategory::Warning);
+		}
+		void RemoveBoundResource(uintptr_t Resource) { BoundResources.erase(Resource); }
+
+		// Check if a resource is registered in the bound resources map
+		// Optionally it takes a pointer to a BindType variable, and if it's found, it fills the pointer with the resource usage (in/out)
+		bool IsResourceBound(uintptr_t Resource, pair<bool,BindInfo>* UsagePtr = nullptr)
+		{
+			auto v = BoundResources.find(Resource);
+			if (v != BoundResources.end())
+			{
+				if(UsagePtr)
+					*UsagePtr =  v->second;
+				return true;
+			}
+			else
+				return false;
+		}
 	private:
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -143,6 +182,9 @@ namespace FrameDX
 		HWND WindowHandle;
 
 		std::chrono::time_point<std::chrono::high_resolution_clock> last_call_time;
+
+		// Records the bound resource to prevent in/out conflicts and reduce unbinds
+		unordered_map<uintptr_t, pair<bool,BindInfo>> BoundResources;
 	};
 }
 

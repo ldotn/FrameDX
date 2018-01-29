@@ -203,4 +203,16 @@ namespace FrameDX
 #define __scopedbind__inner2(resource,counter) FrameDX::__ScopedBind __bound_resource ## counter(&resource)
 #define __scopedbind__inner(resource,counter) __scopedbind__inner2(resource,counter)
 #define ScopedBind(resource)  __scopedbind__inner(resource,__COUNTER__)
+
+	// Returns the numerical number of the resource pointer
+	template<typename T>
+	uintptr_t GetResourceID(T Resource)
+	{
+		ID3D11Resource * resource;
+		Resource->GetResource(&resource);
+		uintptr_t id = *(uintptr_t*)(&resource);
+		resource->Release(); // GetResource increases the ref counter
+
+		return id;
+	}
 };
