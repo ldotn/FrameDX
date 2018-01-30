@@ -215,4 +215,71 @@ namespace FrameDX
 
 		return id;
 	}
+
+	// Unbinds based on a bool vector
+	// Leaves the other resources unchanged
+	// SRVsToUnbind should be of D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT size
+	// The Set and Get functions should set and get the SRVs for the pipeline stage in question
+	// This assumes that the Set and Get functions increase the ref counter
+	//		Which is the case for all the Get/Set functions of the Immediate Context
+	template<typename Array>
+	void SparseUnbindSRVs( Array SRVsToUnbind,
+						   function<void(UINT,UINT,ID3D11ShaderResourceView**)> GetFunction, 
+						   function<void(UINT,UINT,ID3D11ShaderResourceView**)> SetFunction)
+	{
+		ID3D11ShaderResourceView* buff[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		GetFunction(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, buff);
+
+		int last_index = 0;
+		for (int i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
+		{
+			if (SRVsToUnbind[i])
+			{
+				// The Get increases the ref counter, need to call release
+				if (buff[i])
+					buff[i]->Release();
+				buff[i] = nullptr;
+
+				if (buff[i] && i > last_index)
+					last_index = i;
+			}
+		}
+
+		SetFunction(0, last_index + 1, buff);
+
+		for (int i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
+			if (buff[i]) buff[i]->Release();
+	}
+
+	// Takes a vector of resources and construct the two vectors later used for unbinds
+	template<typename R, typename ArrayB, typename Array2DB>
+	bool BuildUnbindFlagVector(Device* OwnerDevice,const vector<R>& Resources, Array2DB& UnbindVector, ArrayB& StageNeedsUnbind)
+	{
+		bool unbind_found = false;
+
+		for (int i = 0; i < Resources.size(); i++)
+		{
+			auto& r = Resources[i];
+
+			// Check there are no in-out conflicts
+			auto id = GetResourceID(r);
+			pair<bool, Device::BindInfo> info;
+			if (OwnerDevice->IsResourceBound(id, &info) && info.second.Usage == Device::BindInfo::Input)
+			{
+				// Check if the binding is active
+				if (info.first)
+					// In-out conflict, log a warning
+					LogMsg(wstring(L"The resource on slot ") + to_wstring(i) + wstring(L"is still bound for input when trying to bound it for output"), LogCategory::Warning);
+				else
+				{
+					// It's bound for input, but it's not active, so mark it on the unbind array
+					UnbindVector[info.second.ShaderStage][info.second.Slot] = true;
+					unbind_found = true;
+					StageNeedsUnbind[info.second.ShaderStage] = true;
+				}
+			}
+		}
+
+		return unbind_found;
+	};
 };

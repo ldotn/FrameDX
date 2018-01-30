@@ -9,73 +9,39 @@ StatusCode FrameDX::OutputContext::Bind()
 	
 	auto dsv = LinkedDSV;
 	if(!IsDSVLinked)
-		hay que llamar a release porque el get le suma al ref count
+		//hay que llamar a release porque el get le suma al ref count
 		im->OMGetRenderTargets(1,nullptr,&dsv);
 
 	// 5 pipeline stages that can use SRVs : vertex, hull, domain, geometry and pixel
-	bool srvs_to_unbind[5][D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-	bool unbind_needed[5] = {};
-
-	auto needs_unbind = [&](auto& Resources)
-	{
-		bool unbind_found = false;
-
-		for (int i = 0; i < Resources.size(); i++)
-		{
-			auto& r = Resources[i];
-
-			// Check there are no in-out conflicts
-			auto id = GetResourceID(r);
-			pair<bool, Device::BindInfo> info;
-			if (OwnerDevice->IsResourceBound(id, &info) && info.second.Usage == Device::BindInfo::Input)
-			{
-				// Check if the binding is active
-				if (info.first)
-					// In-out conflict, log a warning
-					LogMsg(wstring(L"The resource on slot ") + to_wstring(i) + wstring(L"is still bound for input when trying to bound it for output"), LogCategory::Warning);
-				else
-				{
-					// It's bound for input, but it's not active, so mark it on the unbind array
-					srvs_to_unbind[info.second.ShaderStage][info.second.Slot] = true;
-					unbind_found = true;
-					unbind_needed[info.second.ShaderStage] = true;
-				}
-			}
-		}
-
-		return unbind_found;
-	};
+	bool srvs_to_unbind[Device::BindInfo::StagesNum][D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+	bool unbind_needed[Device::BindInfo::StagesNum] = {};
 
 	// Check for conflicts and unbind if necessary
-	if (needs_unbind(LinkedRTVs) ||
-		needs_unbind(LinkedUAVs) ||
-		(IsDSVLinked && needs_unbind(vector<decltype(dsv)>{ dsv })))
+	if (BuildUnbindFlagVector(OwnerDevice,LinkedRTVs,srvs_to_unbind,unbind_needed) ||
+		BuildUnbindFlagVector(OwnerDevice,LinkedUAVs,srvs_to_unbind,unbind_needed) ||
+		(IsDSVLinked && BuildUnbindFlagVector(OwnerDevice,vector<decltype(dsv)>{ dsv },srvs_to_unbind,unbind_needed)))
 	{
-		if(unbind_needed[Device::BindInfo::Vertex])
+		function<void(UINT,UINT, ID3D11ShaderResourceView **)> gets[] =
 		{
-			ID3D11ShaderResourceView* buff[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-			im->VSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, buff);
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->VSGetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->HSGetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->DSGetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->GSGetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->PSGetShaderResources(StartSlot, NumViews, SRVs); }
+		};
 
-			int last_index = 0;
-			for(int i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
-			{
-				if (srvs_to_unbind[i])
-				{
-					// The Get increases the ref counter, need to call release
-					if (buff[i])
-						buff[i]->Release();
-					buff[i] = nullptr;
+		function<void(UINT, UINT, ID3D11ShaderResourceView **)> sets[] =
+		{
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->VSSetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->HSSetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->DSSetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->GSSetShaderResources(StartSlot, NumViews, SRVs); },
+			[im](auto StartSlot, auto NumViews, auto SRVs) { return im->PSSetShaderResources(StartSlot, NumViews, SRVs); }
+		};
 
-					if (buff[i] && i > last_index)
-						last_index = i;
-				}
-			}
-
-			im->VSSetShaderResources(0, last_index + 1, buff);
-
-			for (int i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
-				if (buff[i]) buff[i]->Release();
-		}
+		for(int i = 0;i < Device::BindInfo::StagesNum;i++)
+			if (unbind_needed[i])
+				SparseUnbindSRVs( srvs_to_unbind[i], gets[i], sets[i]);
 	}
 
 	if(Viewports.size() > 0)
@@ -96,6 +62,9 @@ StatusCode FrameDX::OutputContext::Bind()
 		im->RSSetState(RasterState);
 	if(IsDepthStateLinked)
 		im->OMSetDepthStencilState(DepthState,StencilRefValue);
+
+	if (!IsDSVLinked)
+		dsv->Release();
 
 	return StatusCode::Ok;
 }

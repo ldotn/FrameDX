@@ -131,7 +131,7 @@ namespace FrameDX
 		{
 			enum { Input, Output } Usage;
 			uint32_t Slot;
-			enum { Vertex, Hull, Domain, Geometry, Pixel } ShaderStage;
+			enum { Vertex, Hull, Domain, Geometry, Pixel, StagesNum } ShaderStage;
 		};
 
 		// Registers/Removes a resource without any kind of check

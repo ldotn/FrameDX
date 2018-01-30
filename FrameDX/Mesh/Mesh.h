@@ -124,7 +124,7 @@ namespace FrameDX
 		{ 
 			//problema: si pongo esto aca se va a hacer muchas veces al pedo, porque muchos meshes van a usar lo mismo
 			//recordar las bindeadas no sirve porque cuando unbindeas el mesh tenes que unbindearlas, entonces el siguiente mesh las va a tener que bindear
-
+			/*
 			dev.GetImmediateContext()->IASetInputLayout(in_layout);
 			dev.GetImmediateContext()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -133,7 +133,7 @@ namespace FrameDX
 			UINT stride = sizeof(Vertex);
 			UINT offset = 0;
 			dev.GetImmediateContext()->IASetVertexBuffers(0, 1, &vertex_buffer, &stride, &offset);
-
+			*/
 			return StatusCode::NotImplemented;
 		}
 		virtual StatusCode Unbind() final override 
