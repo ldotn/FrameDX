@@ -73,4 +73,31 @@ namespace FrameDX
 	
 	template<typename T>
 	T ceil(T x,T y){ return x/y + (x % y != 0); }
+
+
+	#define __unique_string_inner2(str,c) str #c
+	#define __unique_string_inner(str,c) __unique_string_inner2(str,c)
+	#define UNIQUE_STRING(base) __unique_string_inner( base, __COUNTER__ )
+
+	// Helper to create a D3D buffer from a vector. Requires the object to have a size() member.
+	template<typename T>
+	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, D3D11_BIND_FLAG BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = UNIQUE_STRING("FrameDX:VectorBuffer") )
+	{
+		D3D11_BUFFER_DESC desc = {};
+
+		desc.ByteWidth = (UINT)DataVector.size() * sizeof(T);
+		desc.BindFlags = BindFlags;
+		desc.Usage = Usage;
+
+		D3D11_SUBRESOURCE_DATA data_desc = {};
+		data_desc.pSysMem = &DataVector[0];
+
+		*OutBuffer = nullptr;
+		auto s = LogCheckAndContinue(Dev.GetDevice()->CreateBuffer(&desc,&data_desc,OutBuffer),LogCategory::Error);
+		if(s == StatusCode::Ok)
+			(*OutBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, Name.length(), Name.c_str());
+
+		return s;
+	}
+
 }

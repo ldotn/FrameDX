@@ -8,43 +8,65 @@ using namespace std;
 
 atomic<int> Texture::NumberOfTextures(0);
 
-StatusCode FrameDX::Texture::CreateSimpleSRV()
+StatusCode FrameDX::Texture::CreateSRV(void* DescPtr,int InVersion)
 {
-	// Device version 3 required to create a SRV1
-	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
+	int TargetVersion = (InVersion == -1) ? GetBestViewVersion<ViewType::SRV>() : InVersion;
+	// If trying to create a higher version, make sure the device supports it
+	// Just checking for v1 now, which requires device v3
+	if(Version < 0 || (TargetVersion > 0 &&  OwnerDevice->GetDeviceVersion() < 3))
+		return StatusCode::InvalidArgument;
+
+	if(TargetVersion == 0)
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc;
-		FillSRVDescription(&srv_desc);
+		if(DescPtr != nullptr)
+			srv_desc = *(D3D11_SHADER_RESOURCE_VIEW_DESC*)DescPtr;
+		else
+			FillSRVDescription(&srv_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateShaderResourceView(TextureResource,&srv_desc,&SRV),LogCategory::Error);
 	}
-	else if(Version == 1)
+	else if(TargetVersion == 1)
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC1 srv_desc;
-		FillSRVDescription1(&srv_desc);
+		if(DescPtr != nullptr)
+			srv_desc = *(D3D11_SHADER_RESOURCE_VIEW_DESC1*)DescPtr;
+		else
+			FillSRVDescription1(&srv_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateShaderResourceView1(TextureResource,&srv_desc,(ID3D11ShaderResourceView1**)&SRV),LogCategory::Error);
 	}
 	else
 		return StatusCode::InvalidArgument;
-
+	
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture::CreateSimpleUAV()
+StatusCode FrameDX::Texture::CreateUAV(void* DescPtr,int InVersion)
 {
-	// Device version 3 required to create an UAV1
-	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
+	int TargetVersion = (InVersion == -1) ? GetBestViewVersion<ViewType::UAV>() : InVersion;
+	// If trying to create a higher version, make sure the device supports it
+	// Just checking for v1 now, which requires device v3
+	if(Version < 0 || (TargetVersion > 0 &&  OwnerDevice->GetDeviceVersion() < 3))
+		return StatusCode::InvalidArgument;
+
+	if(TargetVersion == 0)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc;
-		FillUAVDescription(&uav_desc);
+		if(DescPtr != nullptr)
+			uav_desc = *(D3D11_UNORDERED_ACCESS_VIEW_DESC*)DescPtr;
+		else
+			FillUAVDescription(&uav_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateUnorderedAccessView(TextureResource,&uav_desc,&UAV),LogCategory::Error);
 	}
-	else if(Version == 1)
+	else if(TargetVersion == 1)
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC1 uav_desc;
-		FillUAVDescription1(&uav_desc);
+		if(DescPtr != nullptr)
+			uav_desc = *(D3D11_UNORDERED_ACCESS_VIEW_DESC1*)DescPtr;
+		else
+			FillUAVDescription1(&uav_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateUnorderedAccessView1(TextureResource,&uav_desc,(ID3D11UnorderedAccessView1**)&UAV),LogCategory::Error);
 	}
@@ -53,20 +75,31 @@ StatusCode FrameDX::Texture::CreateSimpleUAV()
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture::CreateSimpleRTV()
+StatusCode FrameDX::Texture::CreateRTV(void* DescPtr,int InVersion)
 {
-	// Device version 3 required to create a RTV1
-	if(Version == 0 || OwnerDevice->GetDeviceVersion() < 3)
+	int TargetVersion = (InVersion == -1) ? GetBestViewVersion<ViewType::RTV>() : InVersion;
+	// If trying to create a higher version, make sure the device supports it
+	// Just checking for v1 now, which requires device v3
+	if(Version < 0 || (TargetVersion > 0 &&  OwnerDevice->GetDeviceVersion() < 3))
+		return StatusCode::InvalidArgument;
+
+	if(TargetVersion == 0)
 	{
 		D3D11_RENDER_TARGET_VIEW_DESC rtv_desc;
-		FillRTVDescription(&rtv_desc);
+		if(DescPtr != nullptr)
+			rtv_desc = *(D3D11_RENDER_TARGET_VIEW_DESC*)DescPtr;
+		else
+			FillRTVDescription(&rtv_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateRenderTargetView(TextureResource,&rtv_desc,&RTV),LogCategory::Error);
 	}
-	else if(Version == 1)
+	else if(TargetVersion == 1)
 	{
 		D3D11_RENDER_TARGET_VIEW_DESC1 rtv_desc;
-		FillRTVDescription1(&rtv_desc);
+		if(DescPtr != nullptr)
+			rtv_desc = *(D3D11_RENDER_TARGET_VIEW_DESC1*)DescPtr;
+		else
+			FillRTVDescription1(&rtv_desc);
 
 		LogCheckWithReturn(OwnerDevice->GetDevice3()->CreateRenderTargetView1(TextureResource,&rtv_desc,(ID3D11RenderTargetView1**)&RTV),LogCategory::Error);
 	}
@@ -75,7 +108,30 @@ StatusCode FrameDX::Texture::CreateSimpleRTV()
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * device)
+StatusCode FrameDX::Texture::CreateDSV(void* DescPtr,int InVersion)
+{
+	int TargetVersion = (InVersion == -1) ? GetBestViewVersion<ViewType::DSV>() : InVersion;
+	// If trying to create a higher version, make sure the device supports it
+	// Just checking for v1 now, which requires device v3
+	if(Version < 0 || (TargetVersion > 0 &&  OwnerDevice->GetDeviceVersion() < 3))
+		return StatusCode::InvalidArgument;
+
+	if(TargetVersion == 0)
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc;
+		if(DescPtr != nullptr)
+			dsv_desc = *(D3D11_DEPTH_STENCIL_VIEW_DESC*)DescPtr;
+		else
+			FillDSVDescription(&dsv_desc);
+
+		LogCheckWithReturn(OwnerDevice->GetDevice()->CreateDepthStencilView(TextureResource,&dsv_desc,&DSV),LogCategory::Error);
+	}
+	else
+		return StatusCode::InvalidArgument;
+	return StatusCode::Ok;
+}
+
+StatusCode FrameDX::Texture2D::CreateFromBackbuffer(Device * device)
 {
 	OwnerDevice = device;
 
@@ -108,16 +164,16 @@ StatusCode FrameDX::Texture2D::CreateFromSwapChain(Device * device)
 
 	// Check if an UAV, SRV or RTV needs to be created
 	if(Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
-		LogCheckWithReturn(CreateSimpleSRV(),LogCategory::Error);
+		LogCheckWithReturn(CreateSRV(),LogCategory::Error);
 	if(Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
-		LogCheckWithReturn(CreateSimpleUAV(),LogCategory::Error)
+		LogCheckWithReturn(CreateUAV(),LogCategory::Error);
 	if(Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-		LogCheckWithReturn(CreateSimpleRTV(),LogCategory::Error)
+		LogCheckWithReturn(CreateRTV(),LogCategory::Error);
 
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Texture2D::Description & params,vector<uint8_t> Data)
+StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Texture2D::Description & params,vector<uint8_t> Data, uint32_t ViewCreationFlags)
 {
 	OwnerDevice = device;
 	Desc = params;
@@ -193,13 +249,15 @@ StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Text
 	// Set debug name
 	TextureResource->SetPrivateData(WKPDID_D3DDebugObjectName, Desc.DebugName.size()-1, Desc.DebugName.c_str());
 
-	// Check if an UAV, SRV or RTV needs to be created
-	if(Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
-		LogCheckWithReturn(CreateSimpleSRV(),LogCategory::Error);
-	if(Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS)
-		LogCheckWithReturn(CreateSimpleUAV(),LogCategory::Error)
-	if(Desc.BindFlags & D3D11_BIND_RENDER_TARGET)
-		LogCheckWithReturn(CreateSimpleRTV(),LogCategory::Error)
+	// Create the required views
+	if((ViewCreationFlags & CreateSRVFlag) && (Desc.BindFlags & D3D11_BIND_SHADER_RESOURCE))
+		LogCheckWithReturn(CreateSRV(),LogCategory::Error);
+	if((ViewCreationFlags & CreateUAVFlag) && (Desc.BindFlags & D3D11_BIND_UNORDERED_ACCESS))
+		LogCheckWithReturn(CreateUAV(),LogCategory::Error);
+	if((ViewCreationFlags & CreateRTVFlag) && (Desc.BindFlags & D3D11_BIND_RENDER_TARGET))
+		LogCheckWithReturn(CreateRTV(),LogCategory::Error);
+	if((ViewCreationFlags & CreateDSVFlag) && (Desc.BindFlags & D3D11_BIND_DEPTH_STENCIL))
+		LogCheckWithReturn(CreateDSV(),LogCategory::Error);
 
 	return StatusCode::Ok;
 }

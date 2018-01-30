@@ -76,7 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir);$(SolutionDir)External\DirectXTK\Inc;$(SolutionDir)External\DirectXTK\Src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir)External\DirectXTK\Inc;$(SolutionDir)External\DirectXTK\Src;$(SolutionDir)External\tinyobjloader;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -84,7 +84,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir);$(SolutionDir)External\DirectXTK\Inc;$(SolutionDir)External\DirectXTK\Src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir)External\DirectXTK\Inc;$(SolutionDir)External\DirectXTK\Src;$(SolutionDir)External\tinyobjloader;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -152,7 +152,9 @@
     <ClInclude Include="Core\Log.h" />
     <ClInclude Include="Core\Utils.h" />
     <ClInclude Include="Device\Device.h" />
-    <ClInclude Include="Shader\Shader.h" />
+    <ClInclude Include="Device\OutputContext.h" />
+    <ClInclude Include="Mesh\Mesh.h" />
+    <ClInclude Include="Shader\Shaders.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture\Texture.h" />
@@ -160,7 +162,9 @@
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp" />
     <ClCompile Include="Device\Device.cpp" />
-    <ClCompile Include="Shader\Shader.cpp" />
+    <ClCompile Include="Device\OutputContext.cpp" />
+    <ClCompile Include="Mesh\Mesh.cpp" />
+    <ClCompile Include="Shader\Shaders.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
