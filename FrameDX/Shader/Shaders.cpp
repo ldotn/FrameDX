@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "Shaders.h"
 #include "../Core/Utils.h"
+#include "../Device/Device.h"
+
 using namespace FrameDX;
 
 ID3DBlob * ReadFile(ID3D11Device* device,

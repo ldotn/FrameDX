@@ -2,6 +2,7 @@
 #include "../Core/Core.h"
 #include "../Texture/Texture.h"
 #include "../Core/Log.h"
+#include "../Core/PipelineState.h"
 
 namespace FrameDX
 {
@@ -14,6 +15,7 @@ namespace FrameDX
 			ImmediateContext = nullptr;
 			SwapChain = nullptr;
 		}
+		~Device();
 
 		// There can only be ONE keyboard callback function on the entire program, that's why it's static
 		static function<void(WPARAM,KeyAction)> KeyboardCallback;
@@ -22,8 +24,6 @@ namespace FrameDX
 		{
 			Description()
 			{
-				CullMode = D3D11_CULL_BACK;
-				FillMode = D3D11_FILL_SOLID;
 				AdapterIndex = 0;
 				ComputeOnly = false;
 
@@ -46,8 +46,6 @@ namespace FrameDX
 				SwapChainDescription.BackbufferDescription.MSAAQuality = 0;
 			}
 
-			D3D11_CULL_MODE CullMode;
-			D3D11_FILL_MODE FillMode;
 			// If the index is -1 all the devices will be listed on the console and the user must select one
 			int AdapterIndex;
 
@@ -165,7 +163,22 @@ namespace FrameDX
 			else
 				return false;
 		}
+
+		// Binds a new state
+		// Automatically unbinds resources that have an in/out conflict (bound before as uav and then as srv or vice versa)
+		// It stores the state to check if it changed, so it won't detect changes done directly.
+		// This DOES NOT prevent in/out conflicts in the provided pipeline state, it ONLY prevents it compared to the old state
+		void BindPipelineState(const PipelineState& NewState);
+
+		PipelineState GetCurrentPipelineStateCopy() { return CurrentPipelineState;  }
 	private:
+		// Used to keep track of the bound state
+		enum class OutputType { ComputeUAV, PixelRTV, PixelUAV };
+		map<ID3D11Resource*, ShaderStage> InputBoundResources;
+		map<ID3D11Resource*, OutputType> OutputBoundResources;
+
+		PipelineState CurrentPipelineState;
+
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 		ID3D11Device * D3DDevice;
@@ -182,9 +195,6 @@ namespace FrameDX
 		HWND WindowHandle;
 
 		std::chrono::time_point<std::chrono::high_resolution_clock> last_call_time;
-
-		// Records the bound resource to prevent in/out conflicts and reduce unbinds
-		unordered_map<uintptr_t, pair<bool,BindInfo>> BoundResources;
 	};
 }
 

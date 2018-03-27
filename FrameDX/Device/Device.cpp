@@ -340,6 +340,323 @@ StatusCode Device::Start(const Device::Description& params)
 		else 
 			return StatusCode::InvalidArgument;
 	}
+
 	
 	return StatusCode::Ok;
+}
+
+void Device::BindPipelineState(const PipelineState& NewState)
+{
+#define changed(v) CurrentPipelineState.v != NewState.v
+#define update(v) CurrentPipelineState.v = NewState.v
+
+	// If any step needs unbinds, just set the resources count for that type to 0 and be done with it in one call
+	// The old "sparse unbind" is useless 
+	bool needs_srv_unbind[(size_t)ShaderStage::_count]{}; // one per stage
+	bool needs_uav_unbind = false;
+	bool needs_cs_uav_unbind = false;
+	bool needs_rtv_unbind = false;
+
+	bool needs_srv_bind[(size_t)ShaderStage::_count]{}; // one per stage
+	bool needs_uav_bind = false;
+	bool needs_cs_uav_bind = false;
+	bool needs_rtv_bind = false;
+
+	// Mesh
+	if (changed(Mesh.IndexBuffer) || changed(Mesh.IndexFormat))
+	{
+		ImmediateContext->IASetIndexBuffer(NewState.Mesh.IndexBuffer, NewState.Mesh.IndexFormat, 0);
+
+		update(Mesh.IndexBuffer);
+		update(Mesh.IndexFormat);
+	}
+
+	if (changed(Mesh.VertexBuffer))
+	{
+		ImmediateContext->IASetVertexBuffers(0, 1, &NewState.Mesh.VertexBuffer, nullptr, nullptr);
+		update(Mesh.VertexBuffer);
+	}
+
+	if (changed(Mesh.InputLayout))
+	{
+		ImmediateContext->IASetInputLayout(NewState.Mesh.InputLayout);
+		update(Mesh.InputLayout);
+	}
+
+	if (changed(Mesh.PrimitiveType))
+	{
+		ImmediateContext->IASetPrimitiveTopology(NewState.Mesh.PrimitiveType);
+		update(Mesh.PrimitiveType);
+	}
+
+	// Output Context
+	if (changed(Output.Viewports))
+	{
+		ImmediateContext->RSSetViewports(NewState.Output.Viewports.size(), NewState.Output.Viewports.data());
+		update(Output.Viewports);
+	}
+
+	if (changed(Output.DepthStencilState) || changed(Output.StencilRef))
+	{
+		ImmediateContext->OMSetDepthStencilState(NewState.Output.DepthStencilState, NewState.Output.StencilRef);
+		update(Output.DepthStencilState);
+		update(Output.StencilRef);
+	}
+
+	if ( changed(Output.BlendState) || 
+		 changed(Output.BlendFactors[0]) || 
+		 changed(Output.BlendFactors[1]) ||
+		 changed(Output.BlendFactors[2]) ||
+		 changed(Output.BlendFactors[3]) 
+	   )
+	{
+		ImmediateContext->OMSetBlendState(NewState.Output.BlendState, NewState.Output.BlendFactors, -1);
+		update(Output.BlendState);
+		update(Output.BlendFactors[0]);
+		update(Output.BlendFactors[1]);
+		update(Output.BlendFactors[2]);
+		update(Output.BlendFactors[3]);
+	}
+
+	if (changed(Output.RasterState))
+	{
+		ImmediateContext->RSSetState(NewState.Output.RasterState);
+		update(Output.RasterState);
+	}
+
+	if (changed(Output.DSV))
+	{
+		ID3D11Resource * resource;
+		NewState.Output.DSV->GetResource(&resource);
+
+		auto entry = InputBoundResources.find(resource);
+		if (entry != InputBoundResources.end())
+		{
+			// Flag that an unbind is needed, and remove it from the bound resources
+			needs_srv_unbind[(size_t)entry->second] = true;
+
+			// Not calling release here, as one map removes the value but the other grabs it
+			InputBoundResources.erase(entry);
+		}
+
+		// DSVs are unbinded at the same time as RTVs
+		OutputBoundResources.insert({ resource, OutputType::PixelRTV });
+
+		needs_rtv_bind = true;
+		update(Output.DSV);
+	}
+
+	if (changed(Output.RTVs))
+	{
+		for (auto & rtv : NewState.Output.RTVs)
+		{
+			ID3D11Resource * resource;
+			rtv->GetResource(&resource);
+
+			auto entry = InputBoundResources.find(resource);
+			if (entry != InputBoundResources.end())
+			{
+				// Flag that an unbind is needed, and remove it from the bound resources
+				needs_srv_unbind[(size_t)entry->second] = true;
+
+				entry->first->Release();
+				InputBoundResources.erase(entry);
+				
+			}
+
+			OutputBoundResources.insert({ resource, OutputType::PixelRTV });
+		}
+		
+		needs_rtv_bind = true;
+		update(Output.RTVs);
+	}
+
+	if (changed(Output.UAVs))
+	{
+		for (auto & uav : NewState.Output.UAVs)
+		{
+			ID3D11Resource * resource;
+			uav->GetResource(&resource);
+
+			auto entry = InputBoundResources.find(resource);
+			if (entry != InputBoundResources.end())
+			{
+				// Flag that an unbind is needed, and remove it from the bound resources
+				needs_srv_unbind[(size_t)entry->second] = true;
+
+				entry->first->Release();
+				InputBoundResources.erase(entry);
+
+			}
+
+			OutputBoundResources.insert({ resource, OutputType::PixelUAV });
+		}
+
+		needs_uav_bind = true;
+		update(Output.UAVs);
+	}
+
+	if (changed(Output.ComputeShaderUAVs))
+	{
+		for (auto & uav : NewState.Output.ComputeShaderUAVs)
+		{
+			ID3D11Resource * resource;
+			uav->GetResource(&resource);
+
+			auto entry = InputBoundResources.find(resource);
+			if (entry != InputBoundResources.end())
+			{
+				// Flag that an unbind is needed, and remove it from the bound resources
+				needs_srv_unbind[(size_t)entry->second] = true;
+
+				entry->first->Release();
+				InputBoundResources.erase(entry);
+
+			}
+
+			OutputBoundResources.insert({ resource, OutputType::ComputeUAV });
+		}
+
+		needs_uav_bind = true;
+		update(Output.ComputeShaderUAVs);
+	}
+
+	// Shaders
+#define update_shader(t,tf) if (changed(Shaders[(size_t)ShaderStage::t].ShaderPtr)) {\
+		ImmediateContext->tf##SetShader((ID3D11##t##Shader*)NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr, nullptr, 0);\
+		update(Shaders[(size_t)ShaderStage::t].ShaderPtr); }
+#define update_shader_cb(t,tf) if (changed(Shaders[(size_t)ShaderStage::t].ConstantBuffersTable)) {\
+		ImmediateContext->tf##SetConstantBuffers(0,NewState.Shaders[(size_t)ShaderStage::t].ConstantBuffersTable.size(), NewState.Shaders[(size_t)ShaderStage::t].ConstantBuffersTable.data());\
+		update(Shaders[(size_t)ShaderStage::t].ShaderPtr); }
+
+	update_shader(Vertex  , VS);
+	update_shader(Hull    , HS);
+	update_shader(Domain  , DS);
+	update_shader(Geometry, GS);
+	update_shader(Pixel   , PS);
+	update_shader(Compute , CS);
+
+	update_shader_cb(Vertex  , VS);
+	update_shader_cb(Hull    , HS);
+	update_shader_cb(Domain  , DS);
+	update_shader_cb(Geometry, GS);
+	update_shader_cb(Pixel   , PS);
+	update_shader_cb(Compute , CS);
+
+	for (size_t i = 0; i < (size_t)ShaderStage::_count; i++)
+	{
+		if (changed(Shaders[i].ResourcesTable))
+		{
+			for (auto & srv : NewState.Shaders[i].ResourcesTable)
+			{
+				ID3D11Resource * resource;
+				srv->GetResource(&resource);
+
+				auto entry = OutputBoundResources.find(resource);
+				if (entry != OutputBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					if (entry->second == OutputType::ComputeUAV)
+						needs_cs_uav_unbind = true;
+					else if (entry->second == OutputType::PixelRTV)
+						needs_rtv_unbind = true;
+					else
+						needs_uav_unbind = true;
+
+					entry->first->Release();
+					OutputBoundResources.erase(entry);
+				}
+
+				InputBoundResources.insert({ resource, (ShaderStage)i });
+			}
+
+			needs_srv_bind[i] = true;
+			update(Shaders[i].ResourcesTable);
+		}
+	}
+
+	// Finished with the setup
+	// At this point CurrentPipelineState is fully updated
+	// -----------------------------------------
+	
+	// Unbind if needed
+	if (needs_cs_uav_unbind)
+		ImmediateContext->CSSetUnorderedAccessViews(0, 0, nullptr, nullptr);
+
+	if (needs_rtv_unbind)
+	{
+		if (needs_uav_unbind)
+			ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(0, nullptr, nullptr, 0, 0, nullptr, nullptr);
+		else
+			ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+	}
+
+	if (needs_srv_unbind[(size_t)ShaderStage::Vertex])
+		ImmediateContext->VSSetShaderResources(0, 0, nullptr);
+	if (needs_srv_unbind[(size_t)ShaderStage::Hull])
+		ImmediateContext->HSSetShaderResources(0, 0, nullptr);
+	if (needs_srv_unbind[(size_t)ShaderStage::Domain])
+		ImmediateContext->DSSetShaderResources(0, 0, nullptr);
+	if (needs_srv_unbind[(size_t)ShaderStage::Geometry])
+		ImmediateContext->GSSetShaderResources(0, 0, nullptr);
+	if (needs_srv_unbind[(size_t)ShaderStage::Pixel])
+		ImmediateContext->PSSetShaderResources(0, 0, nullptr);
+	if (needs_srv_unbind[(size_t)ShaderStage::Compute])
+		ImmediateContext->CSSetShaderResources(0, 0, nullptr);
+
+	// Now bind if needed
+	UINT dummy = -1;
+
+	if (needs_rtv_bind)
+	{
+		if (needs_uav_bind)
+			ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews
+				(
+					CurrentPipelineState.Output.RTVs.size(), 
+					CurrentPipelineState.Output.RTVs.data(), 
+					CurrentPipelineState.Output.DSV, 
+					CurrentPipelineState.Output.RTVs.size(), 
+					CurrentPipelineState.Output.UAVs.size(), 
+					CurrentPipelineState.Output.UAVs.data(),
+					&dummy
+				);
+		else
+			ImmediateContext->OMSetRenderTargets
+				(
+					CurrentPipelineState.Output.RTVs.size(), 
+					CurrentPipelineState.Output.RTVs.data(), 
+					CurrentPipelineState.Output.DSV
+				);
+	}
+
+	if (needs_cs_uav_bind)
+		ImmediateContext->CSSetUnorderedAccessViews(0, CurrentPipelineState.Output.ComputeShaderUAVs.size(), CurrentPipelineState.Output.ComputeShaderUAVs.data(), &dummy);
+
+	if (needs_srv_bind[(size_t)ShaderStage::Vertex])
+		ImmediateContext->VSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Vertex].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Vertex].ResourcesTable.data());
+	if (needs_srv_bind[(size_t)ShaderStage::Hull])
+		ImmediateContext->HSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Hull].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Hull].ResourcesTable.data());
+	if (needs_srv_bind[(size_t)ShaderStage::Domain])
+		ImmediateContext->DSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Domain].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Domain].ResourcesTable.data());
+	if (needs_srv_bind[(size_t)ShaderStage::Geometry])
+		ImmediateContext->GSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Geometry].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Geometry].ResourcesTable.data());
+	if (needs_srv_bind[(size_t)ShaderStage::Pixel])
+		ImmediateContext->PSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Pixel].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Pixel].ResourcesTable.data());
+	if (needs_srv_bind[(size_t)ShaderStage::Compute])
+		ImmediateContext->CSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.data());
+
+#undef changed
+#undef update
+}
+
+Device::~Device()
+{
+	for (auto& r : InputBoundResources)
+		if(r.first) r.first->Release();
+	for (auto& r : OutputBoundResources)
+		if(r.first) r.first->Release();
+
+	D3DDevice->Release();
+	ImmediateContext->Release();
+	SwapChain->Release();
 }

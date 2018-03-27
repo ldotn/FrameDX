@@ -57,17 +57,28 @@ namespace FrameDX
 	
 
 	// Loops and calls f, while trying to keep all iterations of the same duration
+	// It relays on this_thread::sleep_for, so it's only as accurate as sleep_for is
 	// Can be interrupted
 	template<typename D>
 	void TimedLoop(function<void()> f,D d, bool* BreakCondition = nullptr)
 	{
+		// Find the overhead of sleep
+		auto t0 = chrono::high_resolution_clock::now();
+			this_thread::sleep_for(1ns);
+		auto t1 = chrono::high_resolution_clock::now();
+		auto overhead = t1 - t0;
+
 		while((BreakCondition && *BreakCondition) || !BreakCondition)
 		{
-			auto t0 = chrono::high_resolution_clock::now();
+			t0 = chrono::high_resolution_clock::now();
 				f();
-			auto t1 = chrono::high_resolution_clock::now();
+			t1 = chrono::high_resolution_clock::now();
 			
-			this_thread::sleep_for(d - (t1 - t0));
+			// Don't sleep if the time is under the overhead of sleep_for
+			// Also compensate for overhead here
+			auto r = d - (t1 - t0) - overhead;
+			if(r > overhead)
+				this_thread::sleep_for(r);
 		}
 	}
 	

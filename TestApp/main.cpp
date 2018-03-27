@@ -39,8 +39,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	FrameDX::Device dev;
 
 	auto desc = FrameDX::Device::Description();
-	desc.WindowDescription.SizeX = 1920;
-	desc.WindowDescription.SizeY = 1080;
+	desc.WindowDescription.SizeX = 1024;
+	desc.WindowDescription.SizeY = 1024;
 	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_UNORDERED_ACCESS;
 	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_SHADER_INPUT;
 	LogCheck(dev.Start(desc),FrameDX::LogCategory::CriticalError);
@@ -113,14 +113,17 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	FrameDX::Mesh<FrameDX::StandardVertex> dbg_obj;
 	dbg_obj.LoadFromOBJ(&dev, "test_obj.obj");
 
+	//ofstream rand_file_raw("rand_raw.bin", ios::trunc | ios::binary);
+
 	dev.EnterMainLoop([&](double GlobalTimeNanoseconds)
 	{
+
 		{
 			ScopedBind(test_cs);
 			// This handles the division by group size automatically
 			test_cs.Dispatch(dev,dev.GetBackbuffer()->Desc.SizeX,dev.GetBackbuffer()->Desc.SizeY);
 		}
-		
+
 		{
 			// Bind all the output stuff, render targets, raster state, etc
 			ScopedBind(outc);
@@ -149,8 +152,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 			font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
 			sprite_batch.End();*/
 		}
-		
-
 		dev.GetSwapChain()->Present(0,0);
 	});
 

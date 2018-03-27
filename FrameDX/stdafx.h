@@ -42,6 +42,8 @@
 #include "tiny_obj_loader.h"
 #include <unordered_map>
 #include <cstdint>
+#include <fstream>
+#include <unordered_set>
 
 namespace FrameDX
 {

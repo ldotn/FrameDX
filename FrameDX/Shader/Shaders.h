@@ -1,133 +1,134 @@
 #pragma once
 #include "stdafx.h"
 #include "../Core/Core.h"
-#include "../Core/Binding.h"
 
 namespace FrameDX
 {
-	class ComputeShader : public Bindable
+	class Device;
+
+	class Shader
+	{
+	public:
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) = 0;
+		virtual void * GetShaderPointer() = 0;
+	protected:
+		Device * OwnerDevice;
+	};
+
+	class ComputeShader : public Shader
 	{
 	public:
 		ComputeShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkUAV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
-
-		// Dispatches the shader and if IsAbsolute is false (default) it divides the size by GroupSize
-		StatusCode Dispatch(Device& Dev,uint32_t SizeX,uint32_t SizeY,uint32_t SizeZ = 1,bool IsAbsolute = false);
-	private:
-		ID3D11ComputeShader * Shader;
+		// Makes dispatch easier later on
 		uint32_t GroupSizeX;
 		uint32_t GroupSizeY;
 		uint32_t GroupSizeZ;
+	private:
+		ID3D11ComputeShader * Shader;
 	};
 
-	class PixelShader : public Bindable
+	class PixelShader : public Shader
 	{
 	public:
 		PixelShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
-
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 	private:
 		ID3D11PixelShader * Shader;
 	};
 
-	class VertexShader : public Bindable
+	class VertexShader : public Shader
 	{
 	public:
 		VertexShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
-
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 	private:
 		ID3D11VertexShader * Shader;
 		ID3DBlob * Blob; // Used to create the input layout
 	};
 
-	class GeometryShader : public Bindable
+	class GeometryShader : public Shader
 	{
 	public:
 		GeometryShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
-
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 	private:
 		ID3D11GeometryShader * Shader;
 	};
 
-	class HullShader : public Bindable
+	class HullShader : public Shader
 	{
 	public:
 		HullShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
-
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 	private:
 		ID3D11HullShader * Shader;
 	};
 
-	class DomainShader : public Bindable
+	class DomainShader : public Shader
 	{
 	public:
 		DomainShader() 
 		{ 
-			LinkFlags = CanLinkSRV | CanLinkSampler | CanLinkCB;
+			Shader = nullptr;
 		}
 
-		StatusCode CreateFromFile( Device * OwnerDevice, 
-								   wstring FilePath,
-								   string EntryPoint,
-								   bool FullDebug = false, 
-								   vector<pair<string,string>> Defines = {});
-
-		virtual StatusCode Bind() final override;
-		virtual StatusCode Unbind() final override;
+		virtual StatusCode CreateFromFile( Device * OwnerDevice,
+										   wstring FilePath,
+										   string EntryPoint,
+										   bool FullDebug = false,
+										   vector<pair<string, string>> Defines = {}) override;
+		virtual void * GetShaderPointer() { return Shader; }
 	private:
 		ID3D11DomainShader * Shader;
 	};

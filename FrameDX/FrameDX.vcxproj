@@ -150,6 +150,7 @@
     <ClInclude Include="Core\Binding.h" />
     <ClInclude Include="Core\Core.h" />
     <ClInclude Include="Core\Log.h" />
+    <ClInclude Include="Core\PipelineState.h" />
     <ClInclude Include="Core\Utils.h" />
     <ClInclude Include="Device\Device.h" />
     <ClInclude Include="Device\OutputContext.h" />

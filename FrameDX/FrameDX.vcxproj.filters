@@ -47,6 +47,9 @@
     <ClInclude Include="Mesh\Mesh.h">
       <Filter>Mesh</Filter>
     </ClInclude>
+    <ClInclude Include="Core\PipelineState.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp">
