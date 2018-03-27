@@ -147,13 +147,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Core\Binding.h" />
     <ClInclude Include="Core\Core.h" />
     <ClInclude Include="Core\Log.h" />
     <ClInclude Include="Core\PipelineState.h" />
     <ClInclude Include="Core\Utils.h" />
     <ClInclude Include="Device\Device.h" />
-    <ClInclude Include="Device\OutputContext.h" />
     <ClInclude Include="Mesh\Mesh.h" />
     <ClInclude Include="Shader\Shaders.h" />
     <ClInclude Include="stdafx.h" />
@@ -162,8 +160,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp" />
+    <ClCompile Include="Core\PipelineState.cpp" />
     <ClCompile Include="Device\Device.cpp" />
-    <ClCompile Include="Device\OutputContext.cpp" />
     <ClCompile Include="Mesh\Mesh.cpp" />
     <ClCompile Include="Shader\Shaders.cpp" />
     <ClCompile Include="stdafx.cpp">

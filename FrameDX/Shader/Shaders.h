@@ -15,6 +15,7 @@ namespace FrameDX
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) = 0;
 		virtual void * GetShaderPointer() = 0;
+		virtual ID3DBlob* GetBlob() { return nullptr; }
 	protected:
 		Device * OwnerDevice;
 	};
@@ -55,7 +56,7 @@ namespace FrameDX
 										   string EntryPoint,
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) override;
-		virtual void * GetShaderPointer() { return Shader; }
+		virtual void * GetShaderPointer() override { return Shader; }
 	private:
 		ID3D11PixelShader * Shader;
 	};
@@ -73,7 +74,8 @@ namespace FrameDX
 										   string EntryPoint,
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) override;
-		virtual void * GetShaderPointer() { return Shader; }
+		virtual void * GetShaderPointer() override { return Shader; }
+		virtual ID3DBlob* GetBlob() override { return Blob; }
 	private:
 		ID3D11VertexShader * Shader;
 		ID3DBlob * Blob; // Used to create the input layout
@@ -92,7 +94,7 @@ namespace FrameDX
 										   string EntryPoint,
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) override;
-		virtual void * GetShaderPointer() { return Shader; }
+		virtual void * GetShaderPointer() override { return Shader; }
 	private:
 		ID3D11GeometryShader * Shader;
 	};
@@ -110,7 +112,7 @@ namespace FrameDX
 										   string EntryPoint,
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) override;
-		virtual void * GetShaderPointer() { return Shader; }
+		virtual void * GetShaderPointer() override { return Shader; }
 	private:
 		ID3D11HullShader * Shader;
 	};
@@ -128,7 +130,7 @@ namespace FrameDX
 										   string EntryPoint,
 										   bool FullDebug = false,
 										   vector<pair<string, string>> Defines = {}) override;
-		virtual void * GetShaderPointer() { return Shader; }
+		virtual void * GetShaderPointer() override { return Shader; }
 	private:
 		ID3D11DomainShader * Shader;
 	};

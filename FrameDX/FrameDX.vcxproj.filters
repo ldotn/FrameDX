@@ -32,17 +32,11 @@
     </ClInclude>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Core\Binding.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Utils.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="Shader\Shaders.h">
       <Filter>Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="Device\OutputContext.h">
-      <Filter>Device</Filter>
     </ClInclude>
     <ClInclude Include="Mesh\Mesh.h">
       <Filter>Mesh</Filter>
@@ -65,8 +59,12 @@
     <ClCompile Include="Shader\Shaders.cpp">
       <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="Device\OutputContext.cpp" />
-    <ClCompile Include="Mesh\Mesh.cpp" />
+    <ClCompile Include="Mesh\Mesh.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\PipelineState.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="consolas.spritefont" />

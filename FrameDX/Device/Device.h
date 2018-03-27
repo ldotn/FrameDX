@@ -14,8 +14,8 @@ namespace FrameDX
 			D3DDevice = nullptr;
 			ImmediateContext = nullptr;
 			SwapChain = nullptr;
+			IsPipelineStateValid = false;
 		}
-		~Device();
 
 		// There can only be ONE keyboard callback function on the entire program, that's why it's static
 		static function<void(WPARAM,KeyAction)> KeyboardCallback;
@@ -125,52 +125,18 @@ namespace FrameDX
 		Texture2D * GetBackbuffer(){ return &Backbuffer; }
 		Texture2D * GetZBuffer(){ return &ZBuffer; }
 
-		struct BindInfo
-		{
-			enum { Input, Output } Usage;
-			uint32_t Slot;
-			enum { Vertex, Hull, Domain, Geometry, Pixel, StagesNum } ShaderStage;
-		};
-
-		// Registers/Removes a resource without any kind of check
-		// IF IT ALREADY EXISTS IT WILL OVERWRITE THE RECORD
-		void RegisterBoundResource(uintptr_t Resource, BindInfo Info) 
-		{ 
-			BoundResources[Resource] = { true, Info }; 
-		}
-		void UnregisterBoundResource(uintptr_t Resource) 
-		{ 
-			auto v = BoundResources.find(Resource);
-			if (v != BoundResources.end())
-				v->second.first = false;
-			else
-				// TODO: Use the debug names here, much more useful than just a big number
-				LogMsg(wstring(L"Resource ") + to_wstring(Resource) + wstring(L" wasn't registered before  trying to unregister"), LogCategory::Warning);
-		}
-		void RemoveBoundResource(uintptr_t Resource) { BoundResources.erase(Resource); }
-
-		// Check if a resource is registered in the bound resources map
-		// Optionally it takes a pointer to a BindType variable, and if it's found, it fills the pointer with the resource usage (in/out)
-		bool IsResourceBound(uintptr_t Resource, pair<bool,BindInfo>* UsagePtr = nullptr)
-		{
-			auto v = BoundResources.find(Resource);
-			if (v != BoundResources.end())
-			{
-				if(UsagePtr)
-					*UsagePtr =  v->second;
-				return true;
-			}
-			else
-				return false;
-		}
-
 		// Binds a new state
 		// Automatically unbinds resources that have an in/out conflict (bound before as uav and then as srv or vice versa)
 		// It stores the state to check if it changed, so it won't detect changes done directly.
 		// This DOES NOT prevent in/out conflicts in the provided pipeline state, it ONLY prevents it compared to the old state
+		// Null pointers are ignored. If you want to set something to null, you have to do it manually
 		void BindPipelineState(const PipelineState& NewState);
 
 		PipelineState GetCurrentPipelineStateCopy() { return CurrentPipelineState;  }
+	
+		// Should be the last release called
+		// Not using a destructor because I can't know the order they'll be destructed
+		void Release();
 	private:
 		// Used to keep track of the bound state
 		enum class OutputType { ComputeUAV, PixelRTV, PixelUAV };
@@ -178,6 +144,7 @@ namespace FrameDX
 		map<ID3D11Resource*, OutputType> OutputBoundResources;
 
 		PipelineState CurrentPipelineState;
+		bool IsPipelineStateValid;
 
 		static LRESULT WINAPI InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

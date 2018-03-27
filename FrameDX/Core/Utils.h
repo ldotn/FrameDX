@@ -59,6 +59,7 @@ namespace FrameDX
 	// Loops and calls f, while trying to keep all iterations of the same duration
 	// It relays on this_thread::sleep_for, so it's only as accurate as sleep_for is
 	// Can be interrupted
+	// TODO: Rewrite this, using sleep IS NOT the proper way to time a loop. Just use a timer from the win api
 	template<typename D>
 	void TimedLoop(function<void()> f,D d, bool* BreakCondition = nullptr)
 	{

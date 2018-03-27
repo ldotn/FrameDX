@@ -8,7 +8,6 @@
 #include <conio.h>
 #include "Shader/Shaders.h"
 #include "Core/Utils.h"
-#include "Device/OutputContext.h"
 #include "Mesh/Mesh.h"
 
 using namespace std;
@@ -39,8 +38,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	FrameDX::Device dev;
 
 	auto desc = FrameDX::Device::Description();
-	desc.WindowDescription.SizeX = 1024;
-	desc.WindowDescription.SizeY = 1024;
+	desc.WindowDescription.SizeX = 1920;
+	desc.WindowDescription.SizeY = 1080;
 	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_UNORDERED_ACCESS;
 	desc.SwapChainDescription.BackbufferAccessFlags |= DXGI_USAGE_SHADER_INPUT;
 	LogCheck(dev.Start(desc),FrameDX::LogCategory::CriticalError);
@@ -70,23 +69,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	FrameDX::ComputeShader test_cs;
 	test_cs.CreateFromFile(&dev,L"TestCS.hlsl","main");
 
-	test_cs.LinkSRV(tmp.SRV,0);
-	test_cs.LinkUAV(dev.GetBackbuffer()->UAV,0);
-	
 	DirectX::SimpleMath::Vector2 m_fontPos;
 	DirectX::SpriteBatch sprite_batch(dev.GetImmediateContext());
 	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");
 
-	FrameDX::OutputContext outc(&dev);
 	D3D11_VIEWPORT viewport = {};
 	viewport.Height = 1080;
 	viewport.Width = 1920;
 	viewport.MaxDepth = 1;
 	viewport.MinDepth = 0;
-
-	outc.SetViewport(viewport,0);
-	outc.LinkRTV(dev.GetBackbuffer()->RTV,0);
-	outc.LinkDSV(dev.GetZBuffer()->DSV);
 
 	FrameDX::VertexShader test_vs;
 	test_vs.CreateFromFile(&dev,L"TestVS.hlsl","main");
@@ -99,7 +90,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 
 	ID3D11RasterizerState* raster_state;
 	dev.GetDevice()->CreateRasterizerState(&rs_desc,&raster_state);
-	outc.LinkRasterState(raster_state);
+
 
 	D3D11_DEPTH_STENCIL_DESC ds_desc = {};
 	ds_desc.DepthEnable = true;
@@ -108,50 +99,45 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	
 	ID3D11DepthStencilState* depth_state;
 	dev.GetDevice()->CreateDepthStencilState(&ds_desc,&depth_state);
-	outc.LinkDepthState(depth_state);
 
 	FrameDX::Mesh<FrameDX::StandardVertex> dbg_obj;
 	dbg_obj.LoadFromOBJ(&dev, "test_obj.obj");
+	
+	// Create pipeline states
+	FrameDX::PipelineState mesh_state;
+	mesh_state.Output.Viewports = { viewport };
+	mesh_state.Output.RTVs = { dev.GetBackbuffer()->RTV };
+	mesh_state.Output.DSV = dev.GetZBuffer()->DSV;
+	mesh_state.Mesh = dbg_obj.GetContext();
+	mesh_state.Output.DepthStencilState = depth_state;
+	mesh_state.Output.RasterState = raster_state;
+	mesh_state.Shaders[(size_t)FrameDX::ShaderStage::Vertex].ShaderPtr = &test_vs;
+	mesh_state.Shaders[(size_t)FrameDX::ShaderStage::Pixel].ShaderPtr = &test_ps;
+	mesh_state.BuildInputLayout(&dev);
 
-	//ofstream rand_file_raw("rand_raw.bin", ios::trunc | ios::binary);
+	FrameDX::PipelineState cs_state;
+	cs_state.Shaders[(size_t)FrameDX::ShaderStage::Compute].ShaderPtr = &test_cs;
+	cs_state.Shaders[(size_t)FrameDX::ShaderStage::Compute].ResourcesTable = { tmp.SRV };
+	cs_state.Output.ComputeShaderUAVs = { dev.GetBackbuffer()->UAV };
 
 	dev.EnterMainLoop([&](double GlobalTimeNanoseconds)
 	{
+		// Run compute shader
+		dev.BindPipelineState(cs_state);
+		dev.GetImmediateContext()->Dispatch(ceilf(dev.GetBackbuffer()->Desc.SizeX / test_cs.GroupSizeX), ceilf(dev.GetBackbuffer()->Desc.SizeY / test_cs.GroupSizeY), 1);
+
+		// Render mesh on top of compute shader result
+		dev.BindPipelineState(mesh_state);
+		dev.GetImmediateContext()->ClearDepthStencilView(dev.GetZBuffer()->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		dev.GetImmediateContext()->DrawIndexed(dbg_obj.Desc.IndexCount, 0, 0);
 
 		{
-			ScopedBind(test_cs);
-			// This handles the division by group size automatically
-			test_cs.Dispatch(dev,dev.GetBackbuffer()->Desc.SizeX,dev.GetBackbuffer()->Desc.SizeY);
-		}
-
-		{
-			// Bind all the output stuff, render targets, raster state, etc
-			ScopedBind(outc);
-
-			dev.GetImmediateContext()->ClearDepthStencilView(dev.GetZBuffer()->DSV,D3D11_CLEAR_DEPTH,1.0f,0);
-
-			/*
-			{
-				//esto junto con el vertex e index buffer tienen que estar en un bindable "Mesh"
-
-				dev.GetImmediateContext()->IASetInputLayout( in_layout );
-				dev.GetImmediateContext()->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-				dev.GetImmediateContext()->IASetIndexBuffer(index_buffer,DXGI_FORMAT_R32_UINT,0);
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				dev.GetImmediateContext()->IASetVertexBuffers(0,1,&vertex_buffer,&stride,&offset);
-
-				// Bind shaders
-				ScopedBind(test_vs);
-				ScopedBind(test_ps);
-
-				dev.GetImmediateContext()->DrawIndexed(indices.size(),0,0);
-			}*/
-
+			
 			/*sprite_batch.Begin();
 			font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
 			sprite_batch.End();*/
 		}
+
 		dev.GetSwapChain()->Present(0,0);
 	});
 

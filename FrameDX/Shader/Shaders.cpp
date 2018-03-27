@@ -85,74 +85,6 @@ StatusCode FrameDX::ComputeShader::CreateFromFile(Device * device, wstring FileP
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::ComputeShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->CSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->CSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedUAVs.size() > 0)
-		im->CSSetUnorderedAccessViews(0,LinkedUAVs.size(),LinkedUAVs.data(),nullptr);
-	if(LinkedSamplers.size() > 0)
-		im->CSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->CSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-size_t constexpr unbind_size()
-{
-	return max(D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT,max(D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT,max(D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT,D3D11_1_UAV_SLOT_COUNT)));
-}
-
-StatusCode FrameDX::ComputeShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->CSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	UINT dummy;
-	if(LinkedSRVs.size() > 0)
-		im->CSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedUAVs.size() > 0)
-		im->CSSetUnorderedAccessViews(0,LinkedUAVs.size(),(ID3D11UnorderedAccessView**)unbind_vec,&dummy);
-	if(LinkedSamplers.size() > 0)
-		im->CSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->CSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
-}
-
-StatusCode FrameDX::ComputeShader::Dispatch(Device & Dev, uint32_t SizeX, uint32_t SizeY, uint32_t SizeZ, bool IsAbsolute)
-{
-	uint32_t groups_x,groups_y,groups_z;
-	if(IsAbsolute)
-	{
-		groups_x = SizeX;
-		groups_y = SizeY;
-		groups_z = SizeZ;
-	}
-	else
-	{
-		groups_x = ceil(SizeX,GroupSizeX);
-		groups_y = ceil(SizeY,GroupSizeY);
-		groups_z = ceil(SizeZ,GroupSizeZ);
-	}
-
-	LogAssertWithReturn(groups_x > 0,LogCategory::Error, StatusCode::InvalidArgument);
-	LogAssertWithReturn(groups_y > 0,LogCategory::Error, StatusCode::InvalidArgument);
-	LogAssertWithReturn(groups_z > 0,LogCategory::Error, StatusCode::InvalidArgument);
-
-	Dev.GetImmediateContext()->Dispatch(groups_x,groups_y,groups_z);
-
-	return StatusCode::Ok;
-}
-
 StatusCode FrameDX::PixelShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
 {
 	StatusCode status;
@@ -164,39 +96,6 @@ StatusCode FrameDX::PixelShader::CreateFromFile(Device * device, wstring FilePat
 	LogCheckWithReturn(OwnerDevice->GetDevice()->CreatePixelShader(shader_blob->GetBufferPointer(),shader_blob->GetBufferSize(),nullptr,&Shader),LogCategory::Error);
 
 	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::PixelShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->PSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->PSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedSamplers.size() > 0)
-		im->PSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->PSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::PixelShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->PSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	if(LinkedSRVs.size() > 0)
-		im->PSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedSamplers.size() > 0)
-		im->PSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->PSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
 }
 
 
@@ -213,38 +112,6 @@ StatusCode FrameDX::VertexShader::CreateFromFile(Device * device, wstring FilePa
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::VertexShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->VSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->VSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedSamplers.size() > 0)
-		im->VSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->VSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::VertexShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->VSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	if(LinkedSRVs.size() > 0)
-		im->VSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedSamplers.size() > 0)
-		im->VSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->VSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
-}
 
 StatusCode FrameDX::GeometryShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
 {
@@ -259,40 +126,6 @@ StatusCode FrameDX::GeometryShader::CreateFromFile(Device * device, wstring File
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::GeometryShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->GSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->GSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedSamplers.size() > 0)
-		im->GSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->GSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::GeometryShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->GSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	if(LinkedSRVs.size() > 0)
-		im->GSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedSamplers.size() > 0)
-		im->GSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->GSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
-}
-
-
 StatusCode FrameDX::HullShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
 {
 	StatusCode status;
@@ -306,40 +139,6 @@ StatusCode FrameDX::HullShader::CreateFromFile(Device * device, wstring FilePath
 	return StatusCode::Ok;
 }
 
-StatusCode FrameDX::HullShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->HSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->HSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedSamplers.size() > 0)
-		im->HSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->HSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::HullShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->HSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	if(LinkedSRVs.size() > 0)
-		im->HSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedSamplers.size() > 0)
-		im->HSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->HSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
-}
-
-
 StatusCode FrameDX::DomainShader::CreateFromFile(Device * device, wstring FilePath, string EntryPoint, bool FullDebug,vector<pair<string,string>> Defines)
 {
 	StatusCode status;
@@ -351,37 +150,4 @@ StatusCode FrameDX::DomainShader::CreateFromFile(Device * device, wstring FilePa
 	LogCheckWithReturn(OwnerDevice->GetDevice()->CreateDomainShader(shader_blob->GetBufferPointer(),shader_blob->GetBufferSize(),nullptr,&Shader),LogCategory::Error);
 
 	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::DomainShader::Bind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-
-	im->DSSetShader(Shader,nullptr,0);
-
-	if(LinkedSRVs.size() > 0)
-		im->DSSetShaderResources(0,LinkedSRVs.size(),LinkedSRVs.data());
-	if(LinkedSamplers.size() > 0)
-		im->DSSetSamplers(0,LinkedSamplers.size(),LinkedSamplers.data());
-	if(LinkedCBs.size() > 0)
-		im->DSSetConstantBuffers(0,LinkedCBs.size(),LinkedCBs.data());
-
-	return StatusCode::Ok;
-}
-
-StatusCode FrameDX::DomainShader::Unbind()
-{
-	auto im = OwnerDevice->GetImmediateContext();
-	im->DSSetShader(Shader,nullptr,0);
-
-	void * unbind_vec[unbind_size()] = {};
-
-	if(LinkedSRVs.size() > 0)
-		im->DSSetShaderResources(0,LinkedSRVs.size(),(ID3D11ShaderResourceView**)unbind_vec);
-	if(LinkedSamplers.size() > 0)
-		im->DSSetSamplers(0,LinkedSamplers.size(),(ID3D11SamplerState**)unbind_vec);
-	if(LinkedCBs.size() > 0)
-		im->DSSetConstantBuffers(0,LinkedCBs.size(),(ID3D11Buffer**)unbind_vec);
-
-	return StatusCode::Ok;	
 }

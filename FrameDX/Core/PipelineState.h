@@ -8,7 +8,7 @@ namespace FrameDX
 	enum class ShaderStage { Vertex, Hull, Domain, Geometry, Pixel, Compute, _count };
 
 	// Stores the context for one shader
-	// It consists on the shader, an srv table and an cb table
+	// It consists on the shader, an srv table, a cb table, a sampler table
 	// It assumes all srvs and cb are bound with contiguous indexes, starting at 0
 	class Shader;
 	struct ShaderContext
@@ -17,9 +17,10 @@ namespace FrameDX
 			ShaderPtr(nullptr)
 		{}
 
-		void * ShaderPtr;
+		Shader * ShaderPtr;
 		vector<ID3D11ShaderResourceView*> ResourcesTable;
 		vector<ID3D11Buffer*> ConstantBuffersTable;
+		vector<ID3D11SamplerState*> SamplersTable;
 	};
 
 	// Stores the context for one mesh
@@ -30,14 +31,14 @@ namespace FrameDX
 		MeshContext() :
 			IndexBuffer(nullptr),
 			VertexBuffer(nullptr),
-			InputLayout(nullptr),
 			PrimitiveType(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST),
 			IndexFormat(DXGI_FORMAT_R32_UINT)
 		{}
 
 		ID3D11Buffer* IndexBuffer;
 		ID3D11Buffer* VertexBuffer;
-		ID3D11InputLayout * InputLayout;
+		UINT VertexStride;
+		const vector<D3D11_INPUT_ELEMENT_DESC>* LayoutDesc; // Needs to always be valid. Usually points to a static resource
 		D3D11_PRIMITIVE_TOPOLOGY PrimitiveType;
 		DXGI_FORMAT IndexFormat;
 	};
@@ -68,11 +69,16 @@ namespace FrameDX
 		float BlendFactors[4];
 	};
 
+	class Device;
 	class PipelineState
 	{
 	public:
 		ShaderContext Shaders[(size_t)ShaderStage::_count];
 		MeshContext Mesh;
 		OutputContext Output;
+		
+		// This depends on both the Mesh and the VS, so it's created by this object
+		ID3D11InputLayout * InputLayout;
+		StatusCode BuildInputLayout(Device * OwnerDev);
 	};
 }

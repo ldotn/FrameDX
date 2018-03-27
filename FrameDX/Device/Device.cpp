@@ -2,6 +2,7 @@
 #include "../Core/Core.h"
 #include "../Core/Log.h"
 #include "Device.h"
+#include "../Shader/Shaders.h"
 
 using namespace FrameDX;
 
@@ -347,7 +348,7 @@ StatusCode Device::Start(const Device::Description& params)
 
 void Device::BindPipelineState(const PipelineState& NewState)
 {
-#define changed(v) CurrentPipelineState.v != NewState.v
+#define changed(v) (!IsPipelineStateValid || (CurrentPipelineState.v != NewState.v))
 #define update(v) CurrentPipelineState.v = NewState.v
 
 	// If any step needs unbinds, just set the resources count for that type to 0 and be done with it in one call
@@ -363,7 +364,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	bool needs_rtv_bind = false;
 
 	// Mesh
-	if (changed(Mesh.IndexBuffer) || changed(Mesh.IndexFormat))
+	if (NewState.Mesh.IndexBuffer && (changed(Mesh.IndexBuffer) || changed(Mesh.IndexFormat)))
 	{
 		ImmediateContext->IASetIndexBuffer(NewState.Mesh.IndexBuffer, NewState.Mesh.IndexFormat, 0);
 
@@ -371,17 +372,20 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		update(Mesh.IndexFormat);
 	}
 
-	if (changed(Mesh.VertexBuffer))
+	if (NewState.Mesh.VertexBuffer && (changed(Mesh.VertexBuffer) || changed(Mesh.VertexStride)))
 	{
-		ImmediateContext->IASetVertexBuffers(0, 1, &NewState.Mesh.VertexBuffer, nullptr, nullptr);
+		UINT offset = 0;
+		ImmediateContext->IASetVertexBuffers(0, 1, &NewState.Mesh.VertexBuffer, &NewState.Mesh.VertexStride, &offset);
 		update(Mesh.VertexBuffer);
+		update(Mesh.VertexStride);
 	}
 
-	if (changed(Mesh.InputLayout))
+	if (NewState.InputLayout && changed(InputLayout))
 	{
-		ImmediateContext->IASetInputLayout(NewState.Mesh.InputLayout);
-		update(Mesh.InputLayout);
+		ImmediateContext->IASetInputLayout(NewState.InputLayout);
+		update(InputLayout);
 	}
+
 
 	if (changed(Mesh.PrimitiveType))
 	{
@@ -396,19 +400,20 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		update(Output.Viewports);
 	}
 
-	if (changed(Output.DepthStencilState) || changed(Output.StencilRef))
+	if (NewState.Output.DepthStencilState && (changed(Output.DepthStencilState) || changed(Output.StencilRef)))
 	{
 		ImmediateContext->OMSetDepthStencilState(NewState.Output.DepthStencilState, NewState.Output.StencilRef);
 		update(Output.DepthStencilState);
 		update(Output.StencilRef);
 	}
 
-	if ( changed(Output.BlendState) || 
+	if (NewState.Output.BlendState &&
+	   ( changed(Output.BlendState) || 
 		 changed(Output.BlendFactors[0]) || 
 		 changed(Output.BlendFactors[1]) ||
 		 changed(Output.BlendFactors[2]) ||
 		 changed(Output.BlendFactors[3]) 
-	   )
+	   ))
 	{
 		ImmediateContext->OMSetBlendState(NewState.Output.BlendState, NewState.Output.BlendFactors, -1);
 		update(Output.BlendState);
@@ -418,13 +423,13 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		update(Output.BlendFactors[3]);
 	}
 
-	if (changed(Output.RasterState))
+	if (NewState.Output.RasterState && changed(Output.RasterState))
 	{
 		ImmediateContext->RSSetState(NewState.Output.RasterState);
 		update(Output.RasterState);
 	}
 
-	if (changed(Output.DSV))
+	if (NewState.Output.DSV && changed(Output.DSV))
 	{
 		ID3D11Resource * resource;
 		NewState.Output.DSV->GetResource(&resource);
@@ -448,8 +453,12 @@ void Device::BindPipelineState(const PipelineState& NewState)
 
 	if (changed(Output.RTVs))
 	{
+		bool any_valid = false;
 		for (auto & rtv : NewState.Output.RTVs)
 		{
+			if (!rtv) continue;
+			any_valid = true;
+
 			ID3D11Resource * resource;
 			rtv->GetResource(&resource);
 
@@ -467,14 +476,21 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			OutputBoundResources.insert({ resource, OutputType::PixelRTV });
 		}
 		
-		needs_rtv_bind = true;
-		update(Output.RTVs);
+		if(any_valid)
+		{
+			needs_rtv_bind = true;
+			update(Output.RTVs);
+		}
 	}
 
 	if (changed(Output.UAVs))
 	{
+		bool any_valid = false;
 		for (auto & uav : NewState.Output.UAVs)
 		{
+			if (!uav) continue;
+			any_valid = true;
+
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
@@ -492,14 +508,21 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			OutputBoundResources.insert({ resource, OutputType::PixelUAV });
 		}
 
-		needs_uav_bind = true;
-		update(Output.UAVs);
+		if(any_valid)
+		{
+			needs_uav_bind = true;
+			update(Output.UAVs);
+		}
 	}
 
 	if (changed(Output.ComputeShaderUAVs))
 	{
+		bool any_valid = false;
 		for (auto & uav : NewState.Output.ComputeShaderUAVs)
 		{
+			if (!uav) continue;
+			any_valid = true;
+
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
@@ -517,17 +540,23 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			OutputBoundResources.insert({ resource, OutputType::ComputeUAV });
 		}
 
-		needs_uav_bind = true;
-		update(Output.ComputeShaderUAVs);
+		if (any_valid)
+		{
+			needs_cs_uav_bind = true;
+			update(Output.ComputeShaderUAVs);
+		}
 	}
 
 	// Shaders
-#define update_shader(t,tf) if (changed(Shaders[(size_t)ShaderStage::t].ShaderPtr)) {\
-		ImmediateContext->tf##SetShader((ID3D11##t##Shader*)NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr, nullptr, 0);\
+#define update_shader(t,tf) if (NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr && changed(Shaders[(size_t)ShaderStage::t].ShaderPtr)) {\
+		ImmediateContext->tf##SetShader((ID3D11##t##Shader*)NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr->GetShaderPointer(), nullptr, 0);\
 		update(Shaders[(size_t)ShaderStage::t].ShaderPtr); }
-#define update_shader_cb(t,tf) if (changed(Shaders[(size_t)ShaderStage::t].ConstantBuffersTable)) {\
+#define update_shader_cb(t,tf) if (NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr && changed(Shaders[(size_t)ShaderStage::t].ConstantBuffersTable)) {\
 		ImmediateContext->tf##SetConstantBuffers(0,NewState.Shaders[(size_t)ShaderStage::t].ConstantBuffersTable.size(), NewState.Shaders[(size_t)ShaderStage::t].ConstantBuffersTable.data());\
-		update(Shaders[(size_t)ShaderStage::t].ShaderPtr); }
+		update(Shaders[(size_t)ShaderStage::t].ConstantBuffersTable); }
+#define update_shader_samplers(t,tf) if (NewState.Shaders[(size_t)ShaderStage::t].ShaderPtr && changed(Shaders[(size_t)ShaderStage::t].SamplersTable)) {\
+		ImmediateContext->tf##SetSamplers(0,NewState.Shaders[(size_t)ShaderStage::t].SamplersTable.size(), NewState.Shaders[(size_t)ShaderStage::t].SamplersTable.data());\
+		update(Shaders[(size_t)ShaderStage::t].SamplersTable); }
 
 	update_shader(Vertex  , VS);
 	update_shader(Hull    , HS);
@@ -543,12 +572,23 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	update_shader_cb(Pixel   , PS);
 	update_shader_cb(Compute , CS);
 
+	update_shader_samplers(Vertex  , VS);
+	update_shader_samplers(Hull    , HS);
+	update_shader_samplers(Domain  , DS);
+	update_shader_samplers(Geometry, GS);
+	update_shader_samplers(Pixel   , PS);
+	update_shader_samplers(Compute , CS);
+
 	for (size_t i = 0; i < (size_t)ShaderStage::_count; i++)
 	{
 		if (changed(Shaders[i].ResourcesTable))
 		{
+			bool any_valid = false;
 			for (auto & srv : NewState.Shaders[i].ResourcesTable)
 			{
+				if (!srv) continue;
+				any_valid = true;
+
 				ID3D11Resource * resource;
 				srv->GetResource(&resource);
 
@@ -570,8 +610,11 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				InputBoundResources.insert({ resource, (ShaderStage)i });
 			}
 
-			needs_srv_bind[i] = true;
-			update(Shaders[i].ResourcesTable);
+			if (any_valid)
+			{
+				needs_srv_bind[i] = true;
+				update(Shaders[i].ResourcesTable);
+			}
 		}
 	}
 
@@ -645,11 +688,22 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	if (needs_srv_bind[(size_t)ShaderStage::Compute])
 		ImmediateContext->CSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.data());
 
+	// Now if it was invalid make a copy of the state, even copying nulls
+	// This way we make sure the state is valid, even if it has nulls
+	if (!IsPipelineStateValid)
+	{
+		CurrentPipelineState = NewState;
+		IsPipelineStateValid = true;
+	}
+	
+#undef update_shader_cb
+#undef update_shader_samplers
+#undef update_shader
 #undef changed
 #undef update
 }
 
-Device::~Device()
+void Device::Release()
 {
 	for (auto& r : InputBoundResources)
 		if(r.first) r.first->Release();
