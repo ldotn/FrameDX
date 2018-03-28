@@ -139,9 +139,10 @@ namespace FrameDX
 		void Release();
 	private:
 		// Used to keep track of the bound state
-		enum class OutputType { ComputeUAV, PixelRTV, PixelUAV };
-		map<ID3D11Resource*, ShaderStage> InputBoundResources;
-		map<ID3D11Resource*, OutputType> OutputBoundResources;
+		enum class UAVStage { Compute, OutputMerger };
+		map<ID3D11Resource*, ShaderStage> SRVBoundResources;
+		map<ID3D11Resource*, UAVStage> UAVBoundResources;
+		unordered_set<ID3D11Resource*> RTVBoundResources;
 
 		PipelineState CurrentPipelineState;
 		bool IsPipelineStateValid;

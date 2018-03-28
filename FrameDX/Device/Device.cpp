@@ -434,18 +434,34 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		ID3D11Resource * resource;
 		NewState.Output.DSV->GetResource(&resource);
 
-		auto entry = InputBoundResources.find(resource);
-		if (entry != InputBoundResources.end())
 		{
-			// Flag that an unbind is needed, and remove it from the bound resources
-			needs_srv_unbind[(size_t)entry->second] = true;
+			auto entry = SRVBoundResources.find(resource);
+			if (entry != SRVBoundResources.end())
+			{
+				// Flag that an unbind is needed, and remove it from the bound resources
+				needs_srv_unbind[(size_t)entry->second] = true;
 
-			// Not calling release here, as one map removes the value but the other grabs it
-			InputBoundResources.erase(entry);
+				entry->first->Release();
+				SRVBoundResources.erase(entry);
+			}
+		}
+		{
+			auto entry = UAVBoundResources.find(resource);
+			if (entry != UAVBoundResources.end())
+			{
+				// Flag that an unbind is needed, and remove it from the bound resources
+				if (entry->second == UAVStage::Compute)
+					needs_cs_uav_unbind = true;
+				else
+					needs_uav_unbind = true;
+
+				entry->first->Release();
+				UAVBoundResources.erase(entry);
+			}
 		}
 
 		// DSVs are unbinded at the same time as RTVs
-		OutputBoundResources.insert({ resource, OutputType::PixelRTV });
+		RTVBoundResources.insert({resource});
 
 		needs_rtv_bind = true;
 		update(Output.DSV);
@@ -462,18 +478,33 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			ID3D11Resource * resource;
 			rtv->GetResource(&resource);
 
-			auto entry = InputBoundResources.find(resource);
-			if (entry != InputBoundResources.end())
 			{
-				// Flag that an unbind is needed, and remove it from the bound resources
-				needs_srv_unbind[(size_t)entry->second] = true;
+				auto entry = SRVBoundResources.find(resource);
+				if (entry != SRVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					needs_srv_unbind[(size_t)entry->second] = true;
 
-				entry->first->Release();
-				InputBoundResources.erase(entry);
-				
+					entry->first->Release();
+					SRVBoundResources.erase(entry);
+				}
+			}
+			{
+				auto entry = UAVBoundResources.find(resource);
+				if (entry != UAVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					if (entry->second == UAVStage::Compute)
+						needs_cs_uav_unbind = true;
+					else
+						needs_uav_unbind = true;
+
+					entry->first->Release();
+					UAVBoundResources.erase(entry);
+				}
 			}
 
-			OutputBoundResources.insert({ resource, OutputType::PixelRTV });
+			RTVBoundResources.insert({ resource });
 		}
 		
 		if(any_valid)
@@ -494,18 +525,30 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
-			auto entry = InputBoundResources.find(resource);
-			if (entry != InputBoundResources.end())
 			{
-				// Flag that an unbind is needed, and remove it from the bound resources
-				needs_srv_unbind[(size_t)entry->second] = true;
+				auto entry = SRVBoundResources.find(resource);
+				if (entry != SRVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					needs_srv_unbind[(size_t)entry->second] = true;
 
-				entry->first->Release();
-				InputBoundResources.erase(entry);
+					entry->first->Release();
+					SRVBoundResources.erase(entry);
+				}
+			}
+			{
+				auto entry = RTVBoundResources.find(resource);
+				if (entry != RTVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					needs_rtv_unbind = true;
 
+					(*entry)->Release();
+					RTVBoundResources.erase(entry);
+				}
 			}
 
-			OutputBoundResources.insert({ resource, OutputType::PixelUAV });
+			UAVBoundResources.insert({ resource, UAVStage::OutputMerger });
 		}
 
 		if(any_valid)
@@ -526,18 +569,30 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
-			auto entry = InputBoundResources.find(resource);
-			if (entry != InputBoundResources.end())
 			{
-				// Flag that an unbind is needed, and remove it from the bound resources
-				needs_srv_unbind[(size_t)entry->second] = true;
+				auto entry = SRVBoundResources.find(resource);
+				if (entry != SRVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					needs_srv_unbind[(size_t)entry->second] = true;
 
-				entry->first->Release();
-				InputBoundResources.erase(entry);
+					entry->first->Release();
+					SRVBoundResources.erase(entry);
+				}
+			}
+			{
+				auto entry = RTVBoundResources.find(resource);
+				if (entry != RTVBoundResources.end())
+				{
+					// Flag that an unbind is needed, and remove it from the bound resources
+					needs_rtv_unbind = true;
 
+					(*entry)->Release();
+					RTVBoundResources.erase(entry);
+				}
 			}
 
-			OutputBoundResources.insert({ resource, OutputType::ComputeUAV });
+			UAVBoundResources.insert({ resource, UAVStage::Compute });
 		}
 
 		if (any_valid)
@@ -592,22 +647,33 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				ID3D11Resource * resource;
 				srv->GetResource(&resource);
 
-				auto entry = OutputBoundResources.find(resource);
-				if (entry != OutputBoundResources.end())
 				{
-					// Flag that an unbind is needed, and remove it from the bound resources
-					if (entry->second == OutputType::ComputeUAV)
-						needs_cs_uav_unbind = true;
-					else if (entry->second == OutputType::PixelRTV)
-						needs_rtv_unbind = true;
-					else
-						needs_uav_unbind = true;
+					auto entry = UAVBoundResources.find(resource);
+					if (entry != UAVBoundResources.end())
+					{
+						// Flag that an unbind is needed, and remove it from the bound resources
+						if (entry->second == UAVStage::Compute)
+							needs_cs_uav_unbind = true;
+						else
+							needs_uav_unbind = true;
 
-					entry->first->Release();
-					OutputBoundResources.erase(entry);
+						entry->first->Release();
+						UAVBoundResources.erase(entry);
+					}
+				}
+				{
+					auto entry = RTVBoundResources.find(resource);
+					if (entry != RTVBoundResources.end())
+					{
+						// Flag that an unbind is needed, and remove it from the bound resources
+						needs_rtv_unbind = true;
+
+						(*entry)->Release();
+						RTVBoundResources.erase(entry);
+					}
 				}
 
-				InputBoundResources.insert({ resource, (ShaderStage)i });
+				SRVBoundResources.insert({ resource, (ShaderStage)i });
 			}
 
 			if (any_valid)
@@ -624,28 +690,62 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	
 	// Unbind if needed
 	if (needs_cs_uav_unbind)
-		ImmediateContext->CSSetUnorderedAccessViews(0, 0, nullptr, nullptr);
+	{
+		ID3D11UnorderedAccessView * clear_buffers[D3D11_1_UAV_SLOT_COUNT] = {};
+		ImmediateContext->CSSetUnorderedAccessViews(0, D3D11_1_UAV_SLOT_COUNT, clear_buffers, nullptr);
 
+		// If doing an unbind, need to update the current state even if it's null
+		// Otherwise it won't be bound again
+		update(Output.ComputeShaderUAVs);
+	}
+		
 	if (needs_rtv_unbind)
 	{
 		if (needs_uav_unbind)
+		{
 			ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(0, nullptr, nullptr, 0, 0, nullptr, nullptr);
+			// If doing an unbind, need to update the current state even if it's null
+			// Otherwise it won't be bound again
+			update(Output.UAVs);
+		}
 		else
 			ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+		// If doing an unbind, need to update the current state even if it's null
+		// Otherwise it won't be bound again
+		update(Output.RTVs);
 	}
 
 	if (needs_srv_unbind[(size_t)ShaderStage::Vertex])
+	{
 		ImmediateContext->VSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Vertex].ResourcesTable);
+	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Hull])
+	{
 		ImmediateContext->HSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Hull].ResourcesTable);
+	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Domain])
+	{
 		ImmediateContext->DSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Domain].ResourcesTable);
+	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Geometry])
+	{
 		ImmediateContext->GSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Geometry].ResourcesTable);
+	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Pixel])
+	{
 		ImmediateContext->PSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Pixel].ResourcesTable);
+	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Compute])
+	{
 		ImmediateContext->CSSetShaderResources(0, 0, nullptr);
+		update(Shaders[(size_t)ShaderStage::Compute].ResourcesTable);
+	}
 
 	// Now bind if needed
 	UINT dummy = -1;
@@ -705,10 +805,12 @@ void Device::BindPipelineState(const PipelineState& NewState)
 
 void Device::Release()
 {
-	for (auto& r : InputBoundResources)
+	for (auto& r : SRVBoundResources)
 		if(r.first) r.first->Release();
-	for (auto& r : OutputBoundResources)
+	for (auto& r : UAVBoundResources)
 		if(r.first) r.first->Release();
+	for (auto& r : RTVBoundResources)
+		if (r) r->Release();
 
 	D3DDevice->Release();
 	ImmediateContext->Release();

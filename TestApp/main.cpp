@@ -122,6 +122,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 
 	dev.EnterMainLoop([&](double GlobalTimeNanoseconds)
 	{
+		float clear_color[4] = { 0,0,0,1 };
+		dev.GetImmediateContext()->ClearRenderTargetView(dev.GetBackbuffer()->RTV, clear_color);
+
 		// Run compute shader
 		dev.BindPipelineState(cs_state);
 		dev.GetImmediateContext()->Dispatch(ceilf(dev.GetBackbuffer()->Desc.SizeX / test_cs.GroupSizeX), ceilf(dev.GetBackbuffer()->Desc.SizeY / test_cs.GroupSizeY), 1);
@@ -131,12 +134,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 		dev.GetImmediateContext()->ClearDepthStencilView(dev.GetZBuffer()->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		dev.GetImmediateContext()->DrawIndexed(dbg_obj.Desc.IndexCount, 0, 0);
 
-		{
-			
-			/*sprite_batch.Begin();
-			font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
-			sprite_batch.End();*/
-		}
+		//sprite_batch.Begin();
+		//font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
+		//sprite_batch.End();
 
 		dev.GetSwapChain()->Present(0,0);
 	});
