@@ -25,8 +25,11 @@ ID3DBlob * ReadFile(ID3D11Device* device,
 			get<0>(d)->Name = get<1>(d)->first.c_str();
 			get<0>(d)->Definition = get<1>(d)->second.c_str();
 		}
-	}
 
+		// Push the null terminator
+		defs.push_back({ nullptr,nullptr });
+	}
+	
 	if(FullDebug)
 	{
 		 flags |= D3DCOMPILE_DEBUG;

@@ -86,6 +86,11 @@ namespace FrameDX
 	template<typename T>
 	T ceil(T x,T y){ return x/y + (x % y != 0); }
 
+	template<typename T>
+	T clamp(T x, T a, T b) { return x < a ? a : (x > b ? b : x); }
+
+	template<typename T>
+	T saturate(T x) { return clamp(x, T(0), T(1));  }
 
 	#define __unique_string_inner2(str,c) str #c
 	#define __unique_string_inner(str,c) __unique_string_inner2(str,c)
