@@ -90,6 +90,8 @@ namespace FrameDX
 		virtual void FillSRVDescription1(D3D11_SHADER_RESOURCE_VIEW_DESC1* DescPtr) = 0;
 		virtual void FillUAVDescription1(D3D11_UNORDERED_ACCESS_VIEW_DESC1* DescPtr) = 0;
 		virtual void FillRTVDescription1(D3D11_RENDER_TARGET_VIEW_DESC1* DescPtr) = 0;
+
+		ID3D11Resource* GetResource() { return TextureResource;  }
 	protected:
 		int Version;
 		ID3D11Resource* TextureResource;
