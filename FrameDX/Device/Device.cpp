@@ -7,6 +7,7 @@
 using namespace FrameDX;
 
 function<void(WPARAM,KeyAction)> Device::KeyboardCallback;
+function<void(WPARAM,int,int)> Device::MouseCallback;
 
 void FrameDX::Device::EnterMainLoop(function<void(double)> LoopBody)
 {
@@ -48,6 +49,10 @@ LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, L
 			break;
 		case WM_KEYUP:
             Device::KeyboardCallback(wParam,KeyAction::Up);
+			break;
+		case WM_MOUSEMOVE:
+			auto mouse_pos = MAKEPOINTS(lParam);
+			Device::MouseCallback(wParam, mouse_pos.x, mouse_pos.y);
 			break;
     }
 

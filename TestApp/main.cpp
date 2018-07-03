@@ -177,19 +177,46 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 
 	// Update global cbuffer
 	DirectX::XMMATRIX view_mat, proj_mat;
+	// Define the mouse loop here to update the variables
+	FrameDX::Device::MouseCallback = [&](WPARAM wParam,int MouseX,int MouseY)
 	{
 		using namespace FrameDX;
 		GlobalCB cb_data;
 
-		cb_data.CameraPos = { 2,2,0 };
-		view_mat = DirectX::XMMatrixLookAtLH(DirectX::XMLoadFloat3(&cb_data.CameraPos), { 0,0,1 }, { 0,1,0 });
+		static float angle_v = 0;
+		static float angle_h = 0;
+		static float div_factor = max(viewport.Width, viewport.Height);
+
+		static int prev_mouse_x = 0;
+		static int prev_mouse_y = 0;
+
+		angle_h += 2.0f*(-(MouseX - prev_mouse_x) / div_factor);
+		angle_v += 2.0f*( (MouseY - prev_mouse_y) / div_factor);
+
+		prev_mouse_x = MouseX;
+		prev_mouse_y = MouseY;
+
+		DirectX::XMVECTOR camera_offset_vec = { 0,0,1,1 };
+		camera_offset_vec = DirectX::XMVector3Transform(
+				DirectX::XMVector3Transform(camera_offset_vec,
+					DirectX::XMMatrixRotationAxis({ 1,0,0 }, -angle_v)),
+				DirectX::XMMatrixRotationAxis({ 0,1,0 }, angle_h));
+
+		const float distance = 2.0f;
+		auto cam_pos = DirectX::XMLoadFloat3(&cb_data.CameraPos);
+		cam_pos = DirectX::XMVectorAdd(cam_pos, DirectX::XMVectorMultiply({ distance,distance,distance,distance }, camera_offset_vec));
+
+		DirectX::XMStoreFloat3(&cb_data.CameraPos, cam_pos);
+		view_mat = DirectX::XMMatrixLookAtLH(cam_pos, { 0,0,0 }, { 0,1,0 });
 		proj_mat = DirectX::XMMatrixPerspectiveFovLH(90_deg, viewport.Width / viewport.Height, 0.01f, 1000.0f);
 
 		DirectX::XMStoreFloat4x4(&cb_data.View,view_mat);
 		DirectX::XMStoreFloat4x4(&cb_data.Proj,proj_mat);
 
 		dev.UpdateBuffer(cb_buffer_global, cb_data);
-	}
+	};
+	// Ensure it's called at least once. Kinda hacky though...
+	FrameDX::Device::MouseCallback(0, 0, 0);
 
 	// Main loop starts here
 	dev.EnterMainLoop([&](double GlobalTimeNanoseconds)

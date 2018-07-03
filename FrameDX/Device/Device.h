@@ -19,6 +19,7 @@ namespace FrameDX
 
 		// There can only be ONE keyboard callback function on the entire program, that's why it's static
 		static function<void(WPARAM,KeyAction)> KeyboardCallback;
+		static function<void(WPARAM,int,int)> MouseCallback;
 
 		struct Description
 		{
@@ -150,6 +151,8 @@ namespace FrameDX
 
 			memcpy(mapped.pData, &Value, sizeof(T));
 			ImmediateContext->Unmap(Buffer, 0);
+
+			return StatusCode::Ok;
 		}
 	private:
 		// Used to keep track of the bound state

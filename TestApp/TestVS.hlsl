@@ -25,6 +25,7 @@ struct PsIn
 {
     float4 ScreenPos : Sv_Position;
     float3 Normal : TEXCOORD0;
+    float3 WPos : TEXCOORD1;
 };
 
 PsIn main(Vertex input)
@@ -33,6 +34,7 @@ PsIn main(Vertex input)
 
     output.ScreenPos = mul(float4(input.Pos, 1.0), WVP);
     output.Normal = mul(input.Norm, (float3x3) World);
+    output.WPos = mul(float4(input.Pos, 1.0), World).xyz;
 
     return output;
 }
