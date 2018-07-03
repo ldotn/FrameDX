@@ -137,6 +137,20 @@ namespace FrameDX
 		// Should be the last release called
 		// Not using a destructor because I can't know the order they'll be destructed
 		void Release();
+
+		HWND GetWindowHandle() { return WindowHandle; }
+
+		// Maps the provided buffer and copies the value
+		template<typename T>
+		StatusCode UpdateBuffer(ID3D11Buffer* Buffer, const T& Value)
+		{
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			LogCheckWithReturn(ImmediateContext->Map(Buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped), LogCategory::Error);
+
+			memcpy(mapped.pData, &Value, sizeof(T));
+			ImmediateContext->Unmap(Buffer, 0);
+		}
 	private:
 		// Used to keep track of the bound state
 		enum class UAVStage { Compute, OutputMerger };
@@ -159,9 +173,9 @@ namespace FrameDX
 		// Only valid if ComputeOnly == false
 		IDXGISwapChain * SwapChain;
 		Texture2D Backbuffer;
-		Texture2D ZBuffer; 
+		Texture2D ZBuffer;
 		HWND WindowHandle;
-
+		
 		std::chrono::time_point<std::chrono::high_resolution_clock> last_call_time;
 	};
 }

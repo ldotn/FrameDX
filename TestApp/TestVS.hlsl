@@ -1,11 +1,17 @@
+cbuffer MeshState : register(b0)
+{ 
+    float4x4 WVP;
+    float4x4 World;
+    float3 Color;
+};
 
-// Hardcoding triangle coordinates
-/*static const float4 vpos[3] =
+cbuffer GlobalState : register(b1)
 {
-    { -0.5f, -0.5f, 0.5f, 1.0f },
-    {  0.5f, -0.5f, 0.5f, 1.0f },
-    {  0.0f,  0.5f, 0.5f, 1.0f }
-};*/
+    float4x4 View;
+    float4x4 Proj;
+
+    float3 CameraPos;
+};
 
 struct Vertex
 {
@@ -25,8 +31,8 @@ PsIn main(Vertex input)
 {
     PsIn output = (PsIn) 0;
 
-    output.ScreenPos = float4(input.Pos, 1.0);
-    output.Normal = input.Norm;
+    output.ScreenPos = mul(float4(input.Pos, 1.0), WVP);
+    output.Normal = mul(input.Norm, (float3x3) World);
 
     return output;
 }

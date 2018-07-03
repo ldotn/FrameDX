@@ -3,9 +3,9 @@
 
 using namespace FrameDX;
 
-__log FrameDX::Log;
+log_ FrameDX::Log;
 
-void __log::_record(const wstring & Message, LogCategory Category, int Line, const wstring & Function, const wstring & File)
+void log_::record_(const wstring & Message, LogCategory Category, int Line, const wstring & Function, const wstring & File)
 {
 	Entry e;
 	e.Category = Category;
@@ -19,7 +19,7 @@ void __log::_record(const wstring & Message, LogCategory Category, int Line, con
 
 }
 
-size_t __log::PrintAll(wostream & OutputStream)
+size_t log_::PrintAll(wostream & OutputStream)
 {
 	size_t count = 0;
 	for(const auto& e : Records)
@@ -35,7 +35,7 @@ size_t __log::PrintAll(wostream & OutputStream)
 	return count;
 }
 
-size_t __log::PrintRange(wostream & OutputStream,size_t Start, size_t End)
+size_t log_::PrintRange(wostream & OutputStream,size_t Start, size_t End)
 {
 	size_t count = 0;
 	for(size_t i = Start; i < End && i < Records.size(); i++)

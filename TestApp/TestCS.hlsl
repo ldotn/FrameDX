@@ -25,7 +25,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         }
            
     }
-
+    
     if(iters == -1)
         OutTex[DTid.xy] = float4(0, 0, 0, 1);
     else

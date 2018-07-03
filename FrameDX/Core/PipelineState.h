@@ -69,7 +69,6 @@ namespace FrameDX
 		float BlendFactors[4];
 	};
 
-	class Device;
 	class PipelineState
 	{
 	public:
@@ -79,6 +78,6 @@ namespace FrameDX
 		
 		// This depends on both the Mesh and the VS, so it's created by this object
 		ID3D11InputLayout * InputLayout;
-		StatusCode BuildInputLayout(Device * OwnerDev);
+		StatusCode BuildInputLayout(class Device * OwnerDev);
 	};
 }

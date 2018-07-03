@@ -3,67 +3,26 @@
 
 namespace FrameDX
 {
-	// Make varadic later
-	template<template <typename,typename> typename C0, template <typename,typename> typename C1, typename T0, typename T1, typename _alloc0 = allocator<T0>, typename _alloc1 = allocator<T1>>
-	class __zip
-	{
-	public:
-		class InternalIterator
-		{
-		public:
-			InternalIterator(int CountV,int CurrentV,typename  C0<T0,_alloc0>::iterator InIterA,typename  C1<T1,_alloc1>::iterator InIterB)
-				: IterA(InIterA), IterB(InIterB)
-			{
-				Current = CurrentV;
-				Count = CountV;
-			}
-
-			InternalIterator operator++()
-			{
-				Current++;
-				IterA++;
-				IterB++;
-				return *this;
-			}
-
-			inline bool operator!=(const InternalIterator& rhs){ return !(Current == rhs.Current); }
-
-			tuple<T0*,T1*> operator*() { return make_tuple(&(*IterA),&(*IterB)); }
-		private:
-			int Count;
-			int Current;
-			typename C0<T0,_alloc0>::iterator IterA;
-			typename C1<T1,_alloc1>::iterator IterB;
-		};
-
-		__zip(C0<T0,_alloc0>& a, C1<T1,_alloc1>& b) 
-			: RefA(a), RefB(b)
-		{
-			auto s_a = std::size(a);
-			auto s_b = std::size(b);
-			Count = s_a < s_b ? s_a : s_b;
-		}
-
-		InternalIterator begin() { return InternalIterator(Count,0,RefA.begin(),RefB.begin()); }
-		InternalIterator end() { return InternalIterator(Count,Count,RefA.end(),RefB.end()); }
-	private:
-		int Count;
-		C0<T0,_alloc0>& RefA;
-		C1<T1,_alloc1>& RefB;
-	};
-
-	template<template <typename,typename> typename C0, template <typename,typename> typename C1, typename T0, typename T1, typename _alloc0 = allocator<T0>, typename _alloc1 = allocator<T1>>
-	__zip<C0,C1,T0,T1,_alloc0,_alloc1> zip(C0<T0,_alloc0>& a, C1<T1,_alloc1>& b){ return __zip<C0,C1,T0,T1>(a,b); }
-	
-
 	// Loops and calls f, while trying to keep all iterations of the same duration
+	// SHOULD NOT BE ASSUMED TO BE ACCURATE!!!
 	// It relays on this_thread::sleep_for, so it's only as accurate as sleep_for is
 	// Can be interrupted
-	// TODO: Rewrite this, using sleep IS NOT the proper way to time a loop. Just use a timer from the win api
+	// Allows the use of generic std::function functions, which is a big limitation of Win32 timers
+	// A quick test based on the log printer loop of the test app gives the following results
+	// System : Windows 10 Pro x64 10.0.17134, Xeon E5-2683 V3, 32 GB RAM, 2x Samsung Evo 850 (250 GB, RAID0)
+	//		Period | Error (%)
+	//		------------------
+	//		 10 ms | 9 - 10 
+	//		 25 ms | 3.5 - 4
+	//		 50 ms | 1.5 - 2
+	//		100 ms | 0.5 - 1
+	//		200 ms | 0.4 - 0.5
+	//		500 ms | 0.18 - 0.2
 	template<typename D>
 	void TimedLoop(function<void()> f,D d, bool* BreakCondition = nullptr)
 	{
 		// Find the overhead of sleep
+		// Assuming a constant overhead, something that IS WRONG
 		auto t0 = chrono::high_resolution_clock::now();
 			this_thread::sleep_for(1ns);
 		auto t1 = chrono::high_resolution_clock::now();
@@ -116,5 +75,15 @@ namespace FrameDX
 
 		return s;
 	}
+	
+	// User-defined literal to write degrees to radians
+	constexpr long double operator"" _deg(long double x)
+	{
+		return (x * 3.1415926535897932384626433832795) / 180.0;
+	}
 
+	constexpr long double operator"" _deg(unsigned long long int x)
+	{
+		return (((long double)x) * 3.1415926535897932384626433832795) / 180.0;
+	}
 }

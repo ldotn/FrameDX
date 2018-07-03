@@ -44,8 +44,11 @@
 #include <cstdint>
 #include <fstream>
 #include <unordered_set>
+#include "FPlusPlus/FPlusPlus/zip.h"
+#include "FPlusPlus/FPlusPlus/enumerate.h"
 
 namespace FrameDX
 {
 	using namespace std;
+	using namespace fpp;
 }

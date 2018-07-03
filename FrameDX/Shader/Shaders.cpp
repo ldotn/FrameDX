@@ -20,10 +20,12 @@ ID3DBlob * ReadFile(ID3D11Device* device,
 	{
 		defs.resize(Defines.size());
 
-		for(auto d : zip(defs,Defines))
+		// This requires the latest standard
+		// zip returns references
+		for(auto [dx_def,in_def] : zip(defs,Defines))
 		{
-			get<0>(d)->Name = get<1>(d)->first.c_str();
-			get<0>(d)->Definition = get<1>(d)->second.c_str();
+			dx_def.Name = in_def.first.c_str();
+			dx_def.Definition = in_def.second.c_str();
 		}
 
 		// Push the null terminator
@@ -59,7 +61,27 @@ ID3DBlob * ReadFile(ID3D11Device* device,
 	{
         if(error_blob)
         {
-            wcout << std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes((char*)error_blob->GetBufferPointer());
+			// D3DCompileFromFile returns an ASCII string for the error string
+			// To be modern, I'm using UTF-8 on the output
+			// That means I need to convert
+			// BUT, if one assumes the error string is going to only use 7-bit ASCII characters
+			//		(something that seems reasonable)
+			// then you can just convert as is, because UTF-8 is backwards compatible with 7-bit ASCII
+			wstring error_string;
+			error_string.resize(error_blob->GetBufferSize(), L' ');
+			char* raw_error_string = (char*)error_blob->GetBufferPointer();
+
+			// Traverse the string and copy the values.
+			// Ignore the ones that are outside the 7-bit ASCII range
+			// Those characters are replaced by a whitespace
+			for (auto [idx, c] : enumerate(error_string))
+			{
+				auto new_char = raw_error_string[idx];
+				if (new_char < 127)
+					c = new_char;
+			}
+
+			wcout << error_string;
             error_blob->Release();
         }
 
