@@ -36,7 +36,6 @@
 #include "PlatformHelpers.h"
 #include "LoaderHelpers.h"
 #include <D3Dcompiler.h>
-#include <SpriteBatch.h>
 #include <SimpleMath.h>
 #include <SpriteFont.h>
 #include "tiny_obj_loader.h"

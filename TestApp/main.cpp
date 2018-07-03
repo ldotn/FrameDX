@@ -72,10 +72,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 	FrameDX::ComputeShader test_cs;
 	test_cs.CreateFromFile(&dev,L"TestCS.hlsl","main");
 
-	DirectX::SimpleMath::Vector2 m_fontPos;
-	DirectX::SpriteBatch sprite_batch(dev.GetImmediateContext());
-	DirectX::SpriteFont font(dev.GetDevice(),L"calibri.spritefont");
-
 	D3D11_VIEWPORT viewport = {};
 	viewport.Height = 1080;
 	viewport.Width = 1920;
@@ -246,11 +242,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 		dev.BindPipelineState(mesh_state);
 		dev.GetImmediateContext()->ClearDepthStencilView(dev.GetZBuffer()->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		dev.GetImmediateContext()->DrawIndexed(dbg_obj.Desc.IndexCount, 0, 0);
-
-		// Sadly, this doesn't play nice with the state caching
-		/*sprite_batch.Begin();
-		font.DrawString(&sprite_batch, (L"Global FPS : " + to_wstring(1e9/GlobalTimeNanoseconds) + L" FPS").c_str(), DirectX::g_XMZero,DirectX::Colors::White);
-		sprite_batch.End();*/
 
 		dev.GetSwapChain()->Present(0,0);
 	});
