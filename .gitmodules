@@ -4,3 +4,6 @@
 [submodule "External/tinyobjloader"]
 	path = External/tinyobjloader
 	url = https://github.com/syoyo/tinyobjloader
+[submodule "External/FPlusPlus"]
+	path = External/FPlusPlus
+	url = https://github.com/RyanTorant/FPlusPlus.git
