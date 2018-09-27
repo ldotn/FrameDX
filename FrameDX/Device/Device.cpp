@@ -6,8 +6,8 @@
 
 using namespace FrameDX;
 
-function<void(WPARAM,KeyAction)> Device::KeyboardCallback;
-function<void(WPARAM,int,int)> Device::MouseCallback;
+function<void(WPARAM, KeyAction)> Device::KeyboardCallback = [](WPARAM, KeyAction) {};
+function<void(WPARAM,int,int)> Device::MouseCallback = [](WPARAM, int, int) {};
 
 void FrameDX::Device::EnterMainLoop(function<void(double)> LoopBody)
 {

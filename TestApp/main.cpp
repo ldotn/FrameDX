@@ -199,6 +199,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 				DirectX::XMMatrixRotationAxis({ 0,1,0 }, angle_h));
 
 		const float distance = 2.0f;
+		cb_data.CameraPos = {};
 		auto cam_pos = DirectX::XMLoadFloat3(&cb_data.CameraPos);
 		cam_pos = DirectX::XMVectorAdd(cam_pos, DirectX::XMVectorMultiply({ distance,distance,distance,distance }, camera_offset_vec));
 
@@ -223,8 +224,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 		// Run compute shader
 		dev.BindPipelineState(cs_state);
 		dev.GetImmediateContext()->Dispatch(ceilf(dev.GetBackbuffer()->Desc.SizeX / test_cs.GroupSizeX), ceilf(dev.GetBackbuffer()->Desc.SizeY / test_cs.GroupSizeY), 1);
-		
-
+	
 		// Render mesh on top of the compute shader result
 		//		Update per-mesh cb
 		{
