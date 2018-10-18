@@ -51,6 +51,7 @@ LRESULT WINAPI Device::InternalMessageProc(HWND hWnd, UINT msg, WPARAM wParam, L
             Device::KeyboardCallback(wParam,KeyAction::Up);
 			break;
 		case WM_MOUSEMOVE:
+		case WM_MOUSEWHEEL:
 			auto mouse_pos = MAKEPOINTS(lParam);
 			Device::MouseCallback(wParam, mouse_pos.x, mouse_pos.y);
 			break;
@@ -355,7 +356,6 @@ void Device::BindPipelineState(const PipelineState& NewState)
 {
 #define changed(v) (!IsPipelineStateValid || (CurrentPipelineState.v != NewState.v))
 #define update(v) CurrentPipelineState.v = NewState.v
-
 	// If any step needs unbinds, just set the resources count for that type to 0 and be done with it in one call
 	// The old "sparse unbind" is useless 
 	bool needs_srv_unbind[(size_t)ShaderStage::_count]{}; // one per stage
@@ -702,6 +702,14 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		// If doing an unbind, need to update the current state even if it's null
 		// Otherwise it won't be bound again
 		update(Output.ComputeShaderUAVs);
+
+		// Remove from the resources map all the UAVs bounded on the CS stage
+		for (auto iter = UAVBoundResources.begin(); iter != UAVBoundResources.end();)
+			if (iter->second == UAVStage::Compute)
+			{
+				iter->first->Release();
+				UAVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 		
 	if (needs_rtv_unbind)
@@ -712,6 +720,15 @@ void Device::BindPipelineState(const PipelineState& NewState)
 			// If doing an unbind, need to update the current state even if it's null
 			// Otherwise it won't be bound again
 			update(Output.UAVs);
+
+			// Remove from the resources map all the UAVs bounded on the OM stage
+			for (auto iter = UAVBoundResources.begin(); iter != UAVBoundResources.end();)
+				if (iter->second == UAVStage::OutputMerger)
+				{
+					iter->first->Release();
+					UAVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+				}
+					
 		}
 		else
 			ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
@@ -719,37 +736,95 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		// If doing an unbind, need to update the current state even if it's null
 		// Otherwise it won't be bound again
 		update(Output.RTVs);
+		update(Output.DSV);
+
+		// Clear the RTV resources map
+		RTVBoundResources = {};
 	}
 
 	if (needs_srv_unbind[(size_t)ShaderStage::Vertex])
 	{
-		ImmediateContext->VSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Vertex].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Vertex)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Hull])
 	{
-		ImmediateContext->HSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->HSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Hull].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Hull)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Domain])
 	{
-		ImmediateContext->DSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->DSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Domain].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Domain)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Geometry])
 	{
-		ImmediateContext->GSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->GSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Geometry].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Geometry)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Pixel])
 	{
-		ImmediateContext->PSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Pixel].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Pixel)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Compute])
 	{
-		ImmediateContext->CSSetShaderResources(0, 0, nullptr);
+		ID3D11ShaderResourceView * clear_buffers[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		ImmediateContext->CSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, clear_buffers);
 		update(Shaders[(size_t)ShaderStage::Compute].ResourcesTable);
+
+		// Remove from the resources map all the SRVs bounded on this stage
+		for (auto iter = SRVBoundResources.begin(); iter != SRVBoundResources.end();)
+			if (iter->second == ShaderStage::Compute)
+			{
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
+			}
 	}
 
 	// Now bind if needed
