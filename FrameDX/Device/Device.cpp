@@ -9,7 +9,7 @@ using namespace FrameDX;
 function<void(WPARAM, KeyAction)> Device::KeyboardCallback = [](WPARAM, KeyAction) {};
 function<void(WPARAM,int,int)> Device::MouseCallback = [](WPARAM, int, int) {};
 
-void FrameDX::Device::EnterMainLoop(function<void(double)> LoopBody)
+void FrameDX::Device::EnterMainLoop(function<bool(double)> LoopBody)
 {
 	MSG msg;
 	msg.message = WM_NULL;
@@ -32,7 +32,8 @@ void FrameDX::Device::EnterMainLoop(function<void(double)> LoopBody)
 			// Measure time between now and the last call
 			auto time = chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - last_call_time);
 			last_call_time = chrono::high_resolution_clock::now();
-			LoopBody(time.count());
+			if (!LoopBody(time.count()))
+				return;
 		}
 	}
 }

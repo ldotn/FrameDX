@@ -121,7 +121,8 @@ namespace FrameDX
 		uint32_t GetSwapChainVersion() { return SwapChainVersion; }
 
 		// Wraps a PeekMessage loop, and calls f on idle time
-		void EnterMainLoop(function<void(double)> LoopBody);
+		// The function returns true if it should continue
+		void EnterMainLoop(function<bool(double)> LoopBody);
 
 		Texture2D * GetBackbuffer(){ return &Backbuffer; }
 		Texture2D * GetZBuffer(){ return &ZBuffer; }

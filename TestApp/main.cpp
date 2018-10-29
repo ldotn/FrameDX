@@ -244,6 +244,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR, int)
 		dev.GetImmediateContext()->DrawIndexed(dbg_obj.Desc.IndexCount, 0, 0);
 
 		dev.GetSwapChain()->Present(0,0);
+		return true;
 	});
 
 	// Not releasing any resources here... Should implement that eventually
