@@ -41,6 +41,12 @@ namespace FrameDX
 			Data.VertexStride = sizeof(VertexType);
 		}
 
+		~Mesh()
+		{
+			Data.IndexBuffer->Release();
+			Data.VertexBuffer->Release();
+		}
+
 		struct Description
 		{
 			Description()
