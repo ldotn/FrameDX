@@ -71,12 +71,16 @@ namespace FrameDX
 			vector<tinyobj::shape_t> shapes;
 			vector<tinyobj::material_t> materials;
 
-			string err;
-			bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, FilePath.c_str(), nullptr, true);
+			string err, warn;
+			bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, FilePath.c_str(), nullptr, true);
 
 			wstring werr(err.begin(), err.end());
 			if (!werr.empty())
 				LogMsg(werr, LogCategory::Error);
+
+			wstring wwarn(warn.begin(), warn.end());
+			if (!wwarn.empty())
+				LogMsg(wwarn, LogCategory::Warning);
 
 			if (!ret)
 				return StatusCode::Failed;
