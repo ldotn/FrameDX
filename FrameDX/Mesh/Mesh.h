@@ -1,6 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include "../Core/PipelineState.h"
+#include "../Device/Device.h"
 
 namespace FrameDX
 {
