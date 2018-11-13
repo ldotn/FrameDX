@@ -130,6 +130,11 @@ namespace FrameDX
 		// Depending on the access flags it also creates a SRV and a UAV
 		StatusCode CreateFromBackbuffer(Device * OwnerDevice);
 	
+
+		// Creates the texture from a file
+		// It only creates an SRV
+		StatusCode CreateFromFile(Device * device, const std::wstring FilePath);
+
 		virtual void FillSRVDescription(D3D11_SHADER_RESOURCE_VIEW_DESC* DescPtr) final override
 		{
 			DescPtr->Format = Desc.Format;

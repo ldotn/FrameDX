@@ -144,7 +144,7 @@ StatusCode FrameDX::Texture2D::CreateFromBackbuffer(Device * device)
 	else
 	{
 		Version = 0;
-		LogCheckWithReturn(OwnerDevice->GetSwapChain()->GetBuffer(0, __uuidof(ID3D11Texture2D1), (void**)&TextureResource),LogCategory::Error);
+		LogCheckWithReturn(OwnerDevice->GetSwapChain()->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&TextureResource),LogCategory::Error);
 	}
 	
 	// Get description
@@ -171,6 +171,11 @@ StatusCode FrameDX::Texture2D::CreateFromBackbuffer(Device * device)
 		LogCheckWithReturn(CreateRTV(),LogCategory::Error);
 
 	return StatusCode::Ok;
+}
+
+StatusCode FrameDX::Texture2D::CreateFromFile(Device * device, const std::wstring FilePath)
+{
+	return (StatusCode)DirectX::CreateWICTextureFromFile(device->GetDevice(), FilePath.c_str(), &TextureResource, &SRV);
 }
 
 StatusCode FrameDX::Texture2D::CreateFromDescription(Device * device, const Texture2D::Description & params,vector<uint8_t> Data, uint32_t ViewCreationFlags)
