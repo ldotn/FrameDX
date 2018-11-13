@@ -57,24 +57,37 @@ namespace FrameDX
 	#define __unique_string_inner(str,c) __unique_string_inner2(str,c)
 	#define UNIQUE_STRING(base) __unique_string_inner( base, __COUNTER__ )
 
-	// Helper to create a D3D buffer from a vector. Requires the object to have a size() member.
+	// Helper to create a D3D buffer from a vector
 	template<typename T>
-	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, D3D11_BIND_FLAG BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = UNIQUE_STRING("FrameDX:VectorBuffer") )
+	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = "", UINT MiscFlags = 0 )
 	{
 		D3D11_BUFFER_DESC desc = {};
 
 		desc.ByteWidth = (UINT)DataVector.size() * sizeof(T);
 		desc.BindFlags = BindFlags;
 		desc.Usage = Usage;
+		desc.MiscFlags = MiscFlags;
+		if (desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
+			desc.StructureByteStride = sizeof(T);
 
 		D3D11_SUBRESOURCE_DATA data_desc = {};
 		data_desc.pSysMem = &DataVector[0];
 
 		*OutBuffer = nullptr;
 		auto s = LogCheckAndContinue(Dev.GetDevice()->CreateBuffer(&desc,&data_desc,OutBuffer),LogCategory::Error);
-		if(s == StatusCode::Ok)
-			(*OutBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, Name.length(), Name.c_str());
-
+		if (s == StatusCode::Ok)
+		{
+			static atomic<int> counter_(0);
+			
+			if (Name == "")
+			{
+				string vec_name = "FrameDX:VectorBuffer" + to_string(counter_++);
+				(*OutBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, vec_name.length(), vec_name.c_str());
+			}
+			else
+				(*OutBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, Name.length(), Name.c_str());
+		}
+		
 		return s;
 	}
 	

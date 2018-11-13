@@ -44,6 +44,9 @@
     <ClInclude Include="Core\PipelineState.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Buffer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\Log.cpp">

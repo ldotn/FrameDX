@@ -41,7 +41,10 @@ namespace FrameDX
 			Data.VertexStride = sizeof(VertexType);
 		}
 
-		~Mesh()
+		// Resource release needs to be explicit, can't be on the destructor
+		// That's because making copies of meshes can make sense
+		// TODO : Think through memory management
+		void Release()
 		{
 			Data.IndexBuffer->Release();
 			Data.VertexBuffer->Release();
@@ -128,7 +131,7 @@ namespace FrameDX
 			return StatusCode::Ok;
 		}
 
-		MeshContext GetContext() { return Data; }
+		MeshContext GetContext() const { return Data; }
 	private:
 		static StandardVertex StandardVertexCallback(const tinyobj::attrib_t& VertexAttributes,const tinyobj::index_t& Indexes)
 		{
