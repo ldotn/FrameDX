@@ -55,13 +55,13 @@ namespace FrameDX
 		auto GetUAV() const  { return UAV; }
 		const vector<T>& GetRawData() const  { return Data; }
 
-		StatusCode Build(vector<T> InData, Device& Dev, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, bool NeedsUAV = false)
+		StatusCode Build(size_t Size, Device& Dev, vector<T> InData = {}, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, bool NeedsUAV = false)
 		{
 			Data = move(InData);
 			UINT bind_flags = NeedsUAV ?
 				D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS : D3D11_BIND_SHADER_RESOURCE;
 
-			auto status = LogCheckAndContinue(CreateBufferFromVector<T>(Data, Dev, bind_flags, &Buffer, Usage, "", D3D11_RESOURCE_MISC_FLAG::D3D11_RESOURCE_MISC_BUFFER_STRUCTURED), LogCategory::Error);
+			auto status = LogCheckAndContinue(CreateBuffer<T>(Size, Dev, bind_flags, &Buffer, Data, Usage, "", D3D11_RESOURCE_MISC_FLAG::D3D11_RESOURCE_MISC_BUFFER_STRUCTURED), LogCategory::Error);
 			if (status != StatusCode::Ok)
 				return status;
 

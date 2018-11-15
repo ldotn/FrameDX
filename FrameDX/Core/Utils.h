@@ -59,11 +59,11 @@ namespace FrameDX
 
 	// Helper to create a D3D buffer from a vector
 	template<typename T>
-	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = "", UINT MiscFlags = 0 )
+	StatusCode CreateBuffer(size_t Size, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer, vector<T> const& DataVector = {}, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, const string& Name = "", UINT MiscFlags = 0)
 	{
 		D3D11_BUFFER_DESC desc = {};
 
-		desc.ByteWidth = (UINT)DataVector.size() * sizeof(T);
+		desc.ByteWidth = (UINT)Size * sizeof(T);
 		desc.BindFlags = BindFlags;
 		desc.Usage = Usage;
 		desc.MiscFlags = MiscFlags;
@@ -71,14 +71,15 @@ namespace FrameDX
 			desc.StructureByteStride = sizeof(T);
 
 		D3D11_SUBRESOURCE_DATA data_desc = {};
-		data_desc.pSysMem = &DataVector[0];
-
+		if(DataVector.size() == Size)
+			data_desc.pSysMem = &DataVector[0];
+		
 		*OutBuffer = nullptr;
-		auto s = LogCheckAndContinue(Dev.GetDevice()->CreateBuffer(&desc,&data_desc,OutBuffer),LogCategory::Error);
+		auto s = LogCheckAndContinue(Dev.GetDevice()->CreateBuffer(&desc, &data_desc, OutBuffer), LogCategory::Error);
 		if (s == StatusCode::Ok)
 		{
 			static atomic<int> counter_(0);
-			
+
 			if (Name == "")
 			{
 				string vec_name = "FrameDX:VectorBuffer" + to_string(counter_++);
@@ -87,9 +88,18 @@ namespace FrameDX
 			else
 				(*OutBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, Name.length(), Name.c_str());
 		}
-		
+
 		return s;
 	}
+
+	template<typename T>
+	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = "", UINT MiscFlags = 0 )
+	{
+		return CreateBuffer(DataVector.size(), Dev, BindFlags, OutBuffer, DataVector, Usage, Name, MiscFlags);
+	}
+
+
+
 	
 	// User-defined literal to write degrees to radians
 	constexpr long double operator"" _deg(long double x)
@@ -101,4 +111,8 @@ namespace FrameDX
 	{
 		return (((long double)x) * 3.1415926535897932384626433832795) / 180.0;
 	}
+
+	#define ONCE_INNER(lambda, n0, n1) static struct once_wrapper_##n0##n1 { once_wrapper_##n0##n1(std::function<void()> f){ f(); }} once_wrapper_var_##n0##n1(lambda);
+	#define ONCE_EXPAND(lambda, n0, n1) ONCE_INNER(lambda,n0,n1)
+	#define ONCE(lambda) ONCE_EXPAND(lambda, __COUNTER__, __LINE__ )
 }
