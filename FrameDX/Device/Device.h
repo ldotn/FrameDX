@@ -158,10 +158,11 @@ namespace FrameDX
 	private:
 		// Used to keep track of the bound state
 		enum class UAVStage { Compute, OutputMerger };
-		map<ID3D11Resource*, ShaderStage> SRVBoundResources;
-		map<ID3D11Resource*, UAVStage> UAVBoundResources;
-		unordered_set<ID3D11Resource*> RTVBoundResources;
 
+		unordered_multimap<ID3D11Resource*, ShaderStage> SRVBoundResources;
+		unordered_multimap<ID3D11Resource*, UAVStage> UAVBoundResources;
+		unordered_set<ID3D11Resource*> RTVBoundResources;
+		
 		PipelineState CurrentPipelineState;
 		bool IsPipelineStateValid;
 

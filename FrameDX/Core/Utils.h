@@ -59,7 +59,7 @@ namespace FrameDX
 
 	// Helper to create a D3D buffer from a vector
 	template<typename T>
-	StatusCode CreateBuffer(size_t Size, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer, vector<T> const& DataVector = {}, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, const string& Name = "", UINT MiscFlags = 0)
+	StatusCode CreateBuffer(size_t Size, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer, vector<T> const& DataVector = {}, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, const string& Name = "", UINT MiscFlags = 0, UINT CPUAccessFlags = 0)
 	{
 		D3D11_BUFFER_DESC desc = {};
 
@@ -67,6 +67,7 @@ namespace FrameDX
 		desc.BindFlags = BindFlags;
 		desc.Usage = Usage;
 		desc.MiscFlags = MiscFlags;
+		desc.CPUAccessFlags = CPUAccessFlags;
 		if (desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
 			desc.StructureByteStride = sizeof(T);
 
@@ -93,9 +94,9 @@ namespace FrameDX
 	}
 
 	template<typename T>
-	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer,D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE,const string& Name = "", UINT MiscFlags = 0 )
+	StatusCode CreateBufferFromVector(vector<T> const& DataVector, Device& Dev, UINT BindFlags, ID3D11Buffer** OutBuffer, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, const string& Name = "", UINT MiscFlags = 0, UINT CPUAccessFlags = 0)
 	{
-		return CreateBuffer(DataVector.size(), Dev, BindFlags, OutBuffer, DataVector, Usage, Name, MiscFlags);
+		return CreateBuffer(DataVector.size(), Dev, BindFlags, OutBuffer, DataVector, Usage, Name, MiscFlags, CPUAccessFlags);
 	}
 
 

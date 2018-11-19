@@ -441,76 +441,105 @@ void Device::BindPipelineState(const PipelineState& NewState)
 		NewState.Output.DSV->GetResource(&resource);
 
 		{
-			auto entry = SRVBoundResources.find(resource);
-			if (entry != SRVBoundResources.end())
+			auto entry = SRVBoundResources.equal_range(resource);
+			for (auto iter = entry.first; iter != entry.second;)
 			{
 				// Flag that an unbind is needed, and remove it from the bound resources
-				needs_srv_unbind[(size_t)entry->second] = true;
+				needs_srv_unbind[(size_t)iter->second] = true;
 
-				entry->first->Release();
-				SRVBoundResources.erase(entry);
+				iter->first->Release();
+				SRVBoundResources.erase(iter++);
 			}
 		}
 		{
-			auto entry = UAVBoundResources.find(resource);
-			if (entry != UAVBoundResources.end())
+			auto entry = UAVBoundResources.equal_range(resource);
+			for (auto iter = entry.first; iter != entry.second;)
 			{
 				// Flag that an unbind is needed, and remove it from the bound resources
-				if (entry->second == UAVStage::Compute)
+				if (iter->second == UAVStage::Compute)
 					needs_cs_uav_unbind = true;
 				else
 					needs_uav_unbind = true;
 
-				entry->first->Release();
-				UAVBoundResources.erase(entry);
+				iter->first->Release();
+				UAVBoundResources.erase(iter++);
 			}
 		}
 
 		// DSVs are unbinded at the same time as RTVs
-		RTVBoundResources.insert({resource});
+		//RTVBoundResources.insert({resource});
+		resource->Release();
 
 		needs_rtv_bind = true;
 		update(Output.DSV);
 	}
 
+#define check_slot_base(idx, type, resources_vector, stage, pipeline_segment, access_code) if (idx < CurrentPipelineState.pipeline_segment.type.size() && CurrentPipelineState.pipeline_segment.type[idx]){\
+		ID3D11Resource * prev_resource;\
+		CurrentPipelineState.pipeline_segment.type[idx]->GetResource(&prev_resource);\
+		auto entry = resources_vector.find(prev_resource);\
+		if (entry != resources_vector.end())\
+		{\
+			access_code\
+		}\
+		prev_resource->Release();}\
+
+#define check_slot_binding(idx, type, resources_vector) check_slot_base(idx,type, resources_vector, , Output, (*entry)->Release(); resources_vector.erase(entry);)
+
+#define check_slot_binding_staged(idx, type, resources_vector, stage) check_slot_base(idx,type, resources_vector, stage, Output, if(entry->second == stage){ entry->first->Release();resources_vector.erase(entry);})
+		
+#define check_slot_binding_srv(idx, type, resources_vector, stage) check_slot_base(idx,type, resources_vector, stage, Shaders[stage], if(entry->second == (ShaderStage)stage){ entry->first->Release();resources_vector.erase(entry);})
+
 	if (changed(Output.RTVs))
 	{
 		bool any_valid = false;
-		for (auto & rtv : NewState.Output.RTVs)
+		//for (auto & rtv : NewState.Output.RTVs)
+		for(int i = 0;i < NewState.Output.RTVs.size();i++)
 		{
-			if (!rtv) continue;
+			auto & rtv = NewState.Output.RTVs[i];
+			if (!rtv)
+			{
+				check_slot_binding(i, RTVs, RTVBoundResources);
+				continue;
+			}
+
 			any_valid = true;
 
 			ID3D11Resource * resource;
 			rtv->GetResource(&resource);
 
 			{
-				auto entry = SRVBoundResources.find(resource);
-				if (entry != SRVBoundResources.end())
+				auto entry = SRVBoundResources.equal_range(resource);
+				for (auto iter = entry.first; iter != entry.second;)
 				{
 					// Flag that an unbind is needed, and remove it from the bound resources
-					needs_srv_unbind[(size_t)entry->second] = true;
+					needs_srv_unbind[(size_t)iter->second] = true;
 
-					entry->first->Release();
-					SRVBoundResources.erase(entry);
+					iter->first->Release();
+					SRVBoundResources.erase(iter++);
 				}
 			}
 			{
-				auto entry = UAVBoundResources.find(resource);
-				if (entry != UAVBoundResources.end())
+				auto entry = UAVBoundResources.equal_range(resource);
+				for (auto iter = entry.first; iter != entry.second;)
 				{
 					// Flag that an unbind is needed, and remove it from the bound resources
-					if (entry->second == UAVStage::Compute)
+					if (iter->second == UAVStage::Compute)
 						needs_cs_uav_unbind = true;
 					else
 						needs_uav_unbind = true;
 
-					entry->first->Release();
-					UAVBoundResources.erase(entry);
+					iter->first->Release();
+					UAVBoundResources.erase(iter++);
 				}
 			}
 
-			RTVBoundResources.insert({ resource });
+			//RTVBoundResources.insert({ resource });
+			resource->Release();
+
+			// Check if there was a bound resource on this slot
+			// If there was, need to remove it from the bound resources list
+			check_slot_binding(i, RTVs, RTVBoundResources);
 		}
 		
 		if(any_valid)
@@ -523,23 +552,29 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	if (changed(Output.UAVs))
 	{
 		bool any_valid = false;
-		for (auto & uav : NewState.Output.UAVs)
+		//for (auto & uav : NewState.Output.UAVs)
+		for(int i = 0;i < NewState.Output.UAVs.size();i++)
 		{
-			if (!uav) continue;
+			auto & uav = NewState.Output.UAVs[i];
+			if (!uav) 
+			{
+				check_slot_binding_staged(i, UAVs, UAVBoundResources, UAVStage::OutputMerger);
+				continue;
+			}
 			any_valid = true;
 
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
 			{
-				auto entry = SRVBoundResources.find(resource);
-				if (entry != SRVBoundResources.end())
+				auto entry = SRVBoundResources.equal_range(resource);
+				for (auto iter = entry.first; iter != entry.second;)
 				{
 					// Flag that an unbind is needed, and remove it from the bound resources
-					needs_srv_unbind[(size_t)entry->second] = true;
+					needs_srv_unbind[(size_t)iter->second] = true;
 
-					entry->first->Release();
-					SRVBoundResources.erase(entry);
+					iter->first->Release();
+					SRVBoundResources.erase(iter++);
 				}
 			}
 			{
@@ -554,7 +589,12 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				}
 			}
 
-			UAVBoundResources.insert({ resource, UAVStage::OutputMerger });
+			//UAVBoundResources.insert({ resource, UAVStage::OutputMerger });
+			resource->Release();
+
+			// Check if there was a bound resource on this slot
+			// If there was, need to remove it from the bound resources list
+			check_slot_binding_staged(i, UAVs, UAVBoundResources, UAVStage::OutputMerger);
 		}
 
 		if(any_valid)
@@ -567,23 +607,29 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	if (changed(Output.ComputeShaderUAVs))
 	{
 		bool any_valid = false;
-		for (auto & uav : NewState.Output.ComputeShaderUAVs)
+		//for (auto & uav : NewState.Output.ComputeShaderUAVs)
+		for(int i = 0;i < NewState.Output.ComputeShaderUAVs.size();i++)
 		{
-			if (!uav) continue;
+			auto & uav = NewState.Output.ComputeShaderUAVs[i];
+			if (!uav)
+			{
+				check_slot_binding_staged(i, UAVs, UAVBoundResources, UAVStage::Compute);
+				continue;
+			}
 			any_valid = true;
 
 			ID3D11Resource * resource;
 			uav->GetResource(&resource);
 
 			{
-				auto entry = SRVBoundResources.find(resource);
-				if (entry != SRVBoundResources.end())
+				auto entry = SRVBoundResources.equal_range(resource);
+				for (auto iter = entry.first; iter != entry.second;)
 				{
 					// Flag that an unbind is needed, and remove it from the bound resources
-					needs_srv_unbind[(size_t)entry->second] = true;
+					needs_srv_unbind[(size_t)iter->second] = true;
 
-					entry->first->Release();
-					SRVBoundResources.erase(entry);
+					iter->first->Release();
+					SRVBoundResources.erase(iter++);
 				}
 			}
 			{
@@ -598,7 +644,12 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				}
 			}
 
-			UAVBoundResources.insert({ resource, UAVStage::Compute });
+			//UAVBoundResources.insert({ resource, UAVStage::Compute });
+			resource->Release();
+
+			// Check if there was a bound resource on this slot
+			// If there was, need to remove it from the bound resources list
+			check_slot_binding_staged(i, UAVs, UAVBoundResources, UAVStage::Compute);
 		}
 
 		if (any_valid)
@@ -640,31 +691,38 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	update_shader_samplers(Pixel   , PS);
 	update_shader_samplers(Compute , CS);
 
-	for (size_t i = 0; i < (size_t)ShaderStage::_count; i++)
+	for (size_t stage = 0; stage < (size_t)ShaderStage::_count; stage++)
 	{
-		if (changed(Shaders[i].ResourcesTable))
+		if (changed(Shaders[stage].ResourcesTable))
 		{
 			bool any_valid = false;
-			for (auto & srv : NewState.Shaders[i].ResourcesTable)
+			//for (auto & srv : NewState.Shaders[stage].ResourcesTable)
+			for (int i = 0; i < NewState.Shaders[stage].ResourcesTable.size(); i++)
 			{
-				if (!srv) continue;
+				auto srv = NewState.Shaders[stage].ResourcesTable[i];
+				if (!srv)
+				{
+					check_slot_binding_srv(i, ResourcesTable, SRVBoundResources, stage);
+					continue;
+				}
+
 				any_valid = true;
 
 				ID3D11Resource * resource;
 				srv->GetResource(&resource);
 
 				{
-					auto entry = UAVBoundResources.find(resource);
-					if (entry != UAVBoundResources.end())
+					auto entry = UAVBoundResources.equal_range(resource);
+					for (auto iter = entry.first; iter != entry.second;)
 					{
 						// Flag that an unbind is needed, and remove it from the bound resources
-						if (entry->second == UAVStage::Compute)
+						if (iter->second == UAVStage::Compute)
 							needs_cs_uav_unbind = true;
 						else
 							needs_uav_unbind = true;
 
-						entry->first->Release();
-						UAVBoundResources.erase(entry);
+						iter->first->Release();
+						UAVBoundResources.erase(iter++);
 					}
 				}
 				{
@@ -679,13 +737,18 @@ void Device::BindPipelineState(const PipelineState& NewState)
 					}
 				}
 
-				SRVBoundResources.insert({ resource, (ShaderStage)i });
+				//SRVBoundResources.insert({ resource, (ShaderStage)stage });
+				resource->Release();
+
+				// Check if there was a bound resource on this slot
+				// If there was, need to remove it from the bound resources list
+				check_slot_binding_srv(i, ResourcesTable, SRVBoundResources, stage);
 			}
 
 			if (any_valid)
 			{
-				needs_srv_bind[i] = true;
-				update(Shaders[i].ResourcesTable);
+				needs_srv_bind[stage] = true;
+				update(Shaders[stage].ResourcesTable);
 			}
 		}
 	}
@@ -711,6 +774,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				UAVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 		
 	if (needs_rtv_unbind)
@@ -729,6 +793,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 					iter->first->Release();
 					UAVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 				}
+				else iter++;
 					
 		}
 		else
@@ -756,6 +821,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Hull])
 	{
@@ -770,6 +836,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Domain])
 	{
@@ -784,6 +851,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Geometry])
 	{
@@ -798,6 +866,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Pixel])
 	{
@@ -812,6 +881,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 	if (needs_srv_unbind[(size_t)ShaderStage::Compute])
 	{
@@ -826,6 +896,7 @@ void Device::BindPipelineState(const PipelineState& NewState)
 				iter->first->Release();
 				SRVBoundResources.erase(iter++);// Removing from a map doesn't invalidate other iterators
 			}
+			else iter++;
 	}
 
 	// Now bind if needed
@@ -869,6 +940,58 @@ void Device::BindPipelineState(const PipelineState& NewState)
 	if (needs_srv_bind[(size_t)ShaderStage::Compute])
 		ImmediateContext->CSSetShaderResources(0, CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.size(), CurrentPipelineState.Shaders[(size_t)ShaderStage::Compute].ResourcesTable.data());
 
+	// Register the bound resources
+	// Assume all the resources were bound correctly. This should always be the case, unless the pipeline state itself has dependency cycles
+	if (NewState.Output.DSV)
+	{
+		ID3D11Resource * resource;
+		NewState.Output.DSV->GetResource(&resource);
+		RTVBoundResources.insert(resource);
+	}
+
+	for (auto ptr : NewState.Output.RTVs)
+	{
+		if (!ptr) continue;
+		ID3D11Resource * resource;
+		ptr->GetResource(&resource);
+		RTVBoundResources.insert(resource);
+	}
+
+	for (auto ptr : NewState.Output.UAVs)
+	{
+		if (!ptr) continue;
+		ID3D11Resource * resource;
+		ptr->GetResource(&resource);
+		UAVBoundResources.insert({ resource, UAVStage::OutputMerger });
+	}
+
+	for (auto ptr : NewState.Output.ComputeShaderUAVs)
+	{
+		if (!ptr) continue;
+		ID3D11Resource * resource;
+		ptr->GetResource(&resource);
+		UAVBoundResources.insert({ resource, UAVStage::Compute });
+	}
+
+	auto update_shader_registry = [&](ShaderStage stage)
+	{
+		for (auto ptr : NewState.Shaders[(size_t)stage].ResourcesTable)
+		{
+			if (!ptr) continue;
+			ID3D11Resource * resource;
+			ptr->GetResource(&resource);
+			SRVBoundResources.insert({ resource, stage });
+		}
+	};
+
+	update_shader_registry(ShaderStage::Vertex);
+	update_shader_registry(ShaderStage::Hull);
+	update_shader_registry(ShaderStage::Domain);
+	update_shader_registry(ShaderStage::Geometry);
+	update_shader_registry(ShaderStage::Pixel);
+	update_shader_registry(ShaderStage::Compute);
+	
+
 	// Now if it was invalid make a copy of the state, even copying nulls
 	// This way we make sure the state is valid, even if it has nulls
 	if (!IsPipelineStateValid)
@@ -882,6 +1005,11 @@ void Device::BindPipelineState(const PipelineState& NewState)
 #undef update_shader
 #undef changed
 #undef update
+#undef check_slot_base
+#undef check_slot_binding
+#undef check_slot_binding_staged
+#undef check_slot_binding_srv
+
 }
 
 void Device::Release()

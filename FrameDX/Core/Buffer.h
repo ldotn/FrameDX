@@ -14,7 +14,12 @@ namespace FrameDX
 		ID3D11UnorderedAccessView * UAV;
 		
 	public:
-		StructuredBuffer() = default;
+		StructuredBuffer()
+		{
+			Buffer = nullptr;
+			SRV = nullptr;
+			UAV = nullptr;
+		}
 		~StructuredBuffer()
 		{
 			if(Buffer)
@@ -57,11 +62,22 @@ namespace FrameDX
 
 		StatusCode Build(size_t Size, Device& Dev, vector<T> InData = {}, D3D11_USAGE Usage = D3D11_USAGE_IMMUTABLE, bool NeedsUAV = false)
 		{
+			// Can't have an UAV and Dynamic usage
+			// [https://docs.microsoft.com/es-es/windows/desktop/api/d3d11/ne-d3d11-d3d11_usage]
+			if (Usage == D3D11_USAGE_DYNAMIC && NeedsUAV)
+				return StatusCode::InvalidArgument;
+
 			Data = move(InData);
 			UINT bind_flags = NeedsUAV ?
 				D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS : D3D11_BIND_SHADER_RESOURCE;
 
-			auto status = LogCheckAndContinue(CreateBuffer<T>(Size, Dev, bind_flags, &Buffer, Data, Usage, "", D3D11_RESOURCE_MISC_FLAG::D3D11_RESOURCE_MISC_BUFFER_STRUCTURED), LogCategory::Error);
+			UINT CPUAccessFlags = 0;
+			if (Usage == D3D11_USAGE_DYNAMIC)
+				CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			else if (Usage == D3D11_USAGE_STAGING)
+				CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+			
+			auto status = LogCheckAndContinue(CreateBuffer<T>(Size, Dev, bind_flags, &Buffer, Data, Usage, "", D3D11_RESOURCE_MISC_FLAG::D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, CPUAccessFlags), LogCategory::Error);
 			if (status != StatusCode::Ok)
 				return status;
 
@@ -98,7 +114,10 @@ namespace FrameDX
 
 		ID3D11Buffer * Buffer;
 		
-		ConstantBuffer() = default;
+		ConstantBuffer() 
+		{
+			Buffer = nullptr;
+		}
 		~ConstantBuffer()
 		{
 			if(Buffer)
