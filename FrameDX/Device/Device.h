@@ -155,6 +155,19 @@ namespace FrameDX
 
 			return StatusCode::Ok;
 		}
+
+		template<typename T>
+		StatusCode UpdateBufferFromVector(ID3D11Buffer* Buffer, const std::vector<T>& Data)
+		{
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			LogCheckWithReturn(ImmediateContext->Map(Buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped), LogCategory::Error);
+
+			memcpy(mapped.pData, Data.data(), sizeof(T)*Data.size());
+			ImmediateContext->Unmap(Buffer, 0);
+
+			return StatusCode::Ok;
+		}
 	private:
 		// Used to keep track of the bound state
 		enum class UAVStage { Compute, OutputMerger };

@@ -74,8 +74,6 @@ namespace FrameDX
 								function<VertexType(const tinyobj::attrib_t&,const tinyobj::index_t&)> VertexCallback = StandardVertexCallback,
 								function<void(vector<VertexType>&,vector<uint32_t>&)> PostprocessCallback = StandardPostprocessCallback )
 		{
-			vector<VertexType> vertexs;
-			vector<uint32_t> indexes;
 
 			tinyobj::attrib_t attrib;
 			vector<tinyobj::shape_t> shapes;
@@ -100,8 +98,8 @@ namespace FrameDX
 			size_t reserve_size = 0;
 			for (const auto& shape : shapes)
 				reserve_size += shape.mesh.indices.size() * 3;
-			vertexs.reserve(reserve_size);
-			indexes.reserve(reserve_size);
+			Vertices.reserve(reserve_size);
+			Indices.reserve(reserve_size);
 
 			for (const auto& shape : shapes)
 			{
@@ -111,27 +109,29 @@ namespace FrameDX
 
 					if (!unique_vertices.count(vertex))
 					{
-						unique_vertices[vertex] = static_cast<uint32_t>(vertexs.size());
-						vertexs.push_back(vertex);
+						unique_vertices[vertex] = static_cast<uint32_t>(Vertices.size());
+						Vertices.push_back(vertex);
 					}
 
-					indexes.push_back(unique_vertices[vertex]);
+					Indices.push_back(unique_vertices[vertex]);
 				}
 			}
 
-			PostprocessCallback(vertexs, indexes);
+			PostprocessCallback(Vertices, Indices);
 
-			FrameDX::CreateBufferFromVector(vertexs, *OwnerDev, D3D11_BIND_VERTEX_BUFFER, &Data.VertexBuffer);
-			FrameDX::CreateBufferFromVector(indexes, *OwnerDev, D3D11_BIND_INDEX_BUFFER, &Data.IndexBuffer);
+			FrameDX::CreateBufferFromVector(Vertices, *OwnerDev, D3D11_BIND_VERTEX_BUFFER, &Data.VertexBuffer);
+			FrameDX::CreateBufferFromVector(Indices, *OwnerDev, D3D11_BIND_INDEX_BUFFER, &Data.IndexBuffer);
 
-			Desc.IndexCount = indexes.size();
-			Desc.VertexCount = vertexs.size();
+			Desc.IndexCount = Indices.size();
+			Desc.VertexCount = Vertices.size();
 			Desc.TriangleCount = Desc.IndexCount / 3;
 			
 			return StatusCode::Ok;
 		}
 
 		MeshContext GetContext() const { return Data; }
+		const vector<VertexType> & GetVertices() const { return Vertices; }
+		const vector<uint32_t> & GetIndices() const { return Indices; }
 	private:
 		static StandardVertex StandardVertexCallback(const tinyobj::attrib_t& VertexAttributes,const tinyobj::index_t& Indexes)
 		{
@@ -168,7 +168,8 @@ namespace FrameDX
 		}
 
 		MeshContext Data;
-		
+		vector<VertexType> Vertices;
+		vector<uint32_t> Indices;
 	};
 }
 
