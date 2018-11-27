@@ -10,14 +10,13 @@ namespace FrameDX
 	// Stores the context for one shader
 	// It consists on the shader, an srv table, a cb table, a sampler table
 	// It assumes all srvs and cb are bound with contiguous indexes, starting at 0
-	class Shader;
 	struct ShaderContext
 	{
 		ShaderContext() :
 			ShaderPtr(nullptr)
 		{}
 
-		Shader * ShaderPtr;
+		class Shader * ShaderPtr;
 		vector<ID3D11ShaderResourceView*> ResourcesTable;
 		vector<ID3D11Buffer*> ConstantBuffersTable;
 		vector<ID3D11SamplerState*> SamplersTable;

@@ -148,11 +148,13 @@ StatusCode Device::Start(const Device::Description& params)
 
 	// Try to create a device with feature level 11.1 (DX 11.2, 11.3, 11.4, etc, also use feature level 11.1)
 	D3D_FEATURE_LEVEL level = D3D_FEATURE_LEVEL_11_1;
-	if(LogCheckAndContinue(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, device_flags, &level, 1, D3D11_SDK_VERSION, &D3DDevice, nullptr, &ImmediateContext ),
-		LogCategory::CriticalError) == StatusCode::InvalidArgument)
+	D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, device_flags, &level, 1, D3D11_SDK_VERSION, &D3DDevice, nullptr, &ImmediateContext);
+	if(!D3DDevice)
 	{
-		// If create device returned invalid argument, it's because DirectX 11.1 is not supported, try with 11.0
-		// Can't do the usual way of sending the array of feature levels and creating a null device because D3D11CreateDevice returns E_INVALIDARG if 11.1 is not supported
+		// If the device failed to be created, try with feature level 11.0
+		LogMsg(L"Failed to create device with feature level 11.1, trying with feature level 11.0", LogCategory::Info);
+
+		level = D3D_FEATURE_LEVEL_11_0;
 		LogCheckWithReturn(D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, device_flags, &level, 1, D3D11_SDK_VERSION, &D3DDevice, nullptr, &ImmediateContext ),LogCategory::CriticalError);
 	}
 	
@@ -291,6 +293,7 @@ StatusCode Device::Start(const Device::Description& params)
 			desc.BufferCount = Desc.SwapChainDescription.BufferCount;
 			desc.SwapEffect = Desc.SwapChainDescription.SwapType;
 			desc.Flags = Desc.SwapChainDescription.Flags;
+			desc.OutputWindow = WindowHandle;
 
 			if(Desc.SwapChainDescription.VSync)
 			{
